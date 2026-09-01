@@ -1,0 +1,21 @@
+CompileFlags:
+  CompilationDatabase: D:/Proyectos/SFML/AwesomeEngine/Build
+  Add:
+    - "-ferror-limit=0"
+    - "-std=c++20"
+  Remove:
+    - "-fmodules-ts"
+    - "-fmodule-mapper=*"
+    - "-fdeps-format=*"
+    - "-fdeps-file=*"
+    - "-fdeps-target-prefix=*"
+    - "-MG"
+    - "-MF"
+    - "-MD"
+    - "-MP"
+Diagnostics:
+  UnusedIncludes: None
+  Suppress:
+    - "drv_unknown_argument"
+    - "pp_file_not_found"
+    - "ovl_no_viable_function_in_init"

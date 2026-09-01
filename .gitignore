@@ -1,0 +1,63 @@
+# Directorios de build
+/Build/
+/build/
+
+# Archivos y carpetas generados por CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+rules.ninja
+*.ninja
+
+# Artefactos de compilación
+*.o
+*.obj
+*.lo
+*.la
+*.lai
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+*.pdb
+*.ilk
+*.exp
+
+# Archivos de empaquetado
+CPackConfig.cmake
+CPackSourceConfig.cmake
+
+# Dependencias y subbuilds temporales
+_deps/
+*-build/
+*-tmp/
+
+# IDEs y editores
+.vscode/
+.vs/
+.idea/
+*.suo
+*.user
+*.VC.db
+
+# Proyectos/soluciones (Visual Studio)
+*.sln
+*.vcxproj*
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos comprimidos / distribuciones
+*.zip
+*.tar.gz
+*.7z
+
+# Logs y temporales
+*.log
+*.tmp
+
+HighScores.txt
