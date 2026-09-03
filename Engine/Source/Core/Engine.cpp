@@ -8,10 +8,8 @@ Engine::Engine() : window_(sf::VideoMode({800, 800}), "Awesome Engine") {
 bool Engine::IsRunning() const { return window_.isOpen(); }
 
 void Engine::ProcessEvent() {
-  while (const std::optional<sf::Event> event = window_.pollEvent()) {
-    if (event->is<sf::Event::Closed>()) {
-      window_.close();
-    }
+  while (const auto event = window_.pollEvent()) {
+    event->visit(EngineVisitor{*this});
   }
 }
 
@@ -22,3 +20,5 @@ void Engine::Render() {
 
   window_.display();
 }
+
+void Engine::EventWindowClose() { window_.close(); }
