@@ -1,11 +1,13 @@
 #pragma once
 
+#include "Core/EngineContext.h"
 #include "Core/EngineVisitor.h"
 #include <SFML/Graphics.hpp>
 
 class Engine {
 private:
   sf::RenderWindow window_;
+  EngineContext context_;
 
 public:
   Engine();
