@@ -1,11 +1,20 @@
 #include "Core/Engine.h"
 #include "Core/EngineConfig.h"
+#include "Utils/Log.h"
 
 Engine::Engine()
     : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
               gConfig.windowTitle) {
   window_.setIcon(sf::Image("Content/Textures/Icon.png"));
   window_.setMinimumSize(window_.getSize() / 2u);
+
+  /** Si disableSfmlLogs es true, desabilita los logs propios de SFML
+  (Esto para usar el sistema propio de logs) **/
+  if (gConfig.disableSfmlLogs) {
+    sf::err().rdbuf(nullptr);
+  }
+
+  LOG_INFO("Window created");
 }
 
 bool Engine::IsRunning() const { return window_.isOpen(); }
@@ -24,4 +33,14 @@ void Engine::Render() {
   window_.display();
 }
 
-void Engine::EventWindowClose() { window_.close(); }
+void Engine::EventWindowClose() {
+  window_.close();
+  LOG_INFO("Window closed");
+}
+
+void Engine::EventWindowResized(sf::Vector2u size) {
+  LOG_INFO("Window resized to: {}x{}", size.x, size.y);
+}
+
+void Engine::EventWindowFocusLost() { LOG_INFO("Window focus lost"); }
+void Engine::EventWindowFocusGained() { LOG_INFO("Window focus gained"); }

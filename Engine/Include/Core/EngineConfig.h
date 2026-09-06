@@ -5,6 +5,7 @@
 struct EngineConfig {
   std::string windowTitle;
   sf::Vector2f windowSize;
+  bool disableSfmlLogs;
 
   EngineConfig();
 };

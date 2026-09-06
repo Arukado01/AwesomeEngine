@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/EngineVistor.h"
+#include "Core/EngineVisitor.h"
 #include <SFML/Graphics.hpp>
 
 class Engine {
@@ -19,4 +19,7 @@ public:
 private:
   friend EngineVisitor;
   void EventWindowClose();
+  void EventWindowResized(sf::Vector2u size);
+  void EventWindowFocusLost();
+  void EventWindowFocusGained();
 };
