@@ -1,5 +1,6 @@
 {
     "windowTitle": "Awesome Engine",
     "windowSize": [800, 800],
-    "disableSfmlLogs": true
+    "disableSfmlLogs": true,
+    "maximumDeltaTime": 0.03
 }
