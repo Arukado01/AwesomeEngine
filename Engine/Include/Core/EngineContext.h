@@ -1,4 +1,5 @@
 #pragma once
+#include "Managers/AudioManager.h"
 #include "Managers/ClipboardManager.h"
 #include "Managers/RandomManager.h"
 #include "Managers/ResourceManager.h"
@@ -11,4 +12,5 @@ struct EngineContext {
   SaveManager save;
   ClipboardManager clipboard;
   ResourceManager resources;
+  AudioManager audio;
 };

@@ -8,6 +8,7 @@ struct EngineConfig {
   sf::Vector2f windowSize;
   bool disableSfmlLogs;
   sf::Time maximumDeltaTime;
+  float globalVolume;
 
   EngineConfig();
 };

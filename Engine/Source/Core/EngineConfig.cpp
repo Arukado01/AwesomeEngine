@@ -12,4 +12,5 @@ EngineConfig::EngineConfig() {
   windowSize = {json["windowSize"][0], json["windowSize"][1]};
   disableSfmlLogs = json["disableSfmlLogs"];
   maximumDeltaTime = sf::seconds(json["maximumDeltaTime"]);
+  globalVolume = json["globalVolume"];
 }
