@@ -1,3 +1,6 @@
 #pragma once
+#include "Managers/RandomManager.h"
 
-struct EngineContext {};
+struct EngineContext {
+  RandomManager random;
+};
