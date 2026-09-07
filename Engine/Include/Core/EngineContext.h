@@ -1,6 +1,7 @@
 #pragma once
 #include "Managers/ClipboardManager.h"
 #include "Managers/RandomManager.h"
+#include "Managers/ResourceManager.h"
 #include "Managers/SaveManager.h"
 #include "Managers/TimeManager.h"
 
@@ -9,4 +10,5 @@ struct EngineContext {
   TimeManager time;
   SaveManager save;
   ClipboardManager clipboard;
+  ResourceManager resources;
 };
