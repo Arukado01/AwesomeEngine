@@ -8,5 +8,7 @@ struct EngineVisitor {
   void operator()(const sf::Event::Resized &);
   void operator()(const sf::Event::FocusLost &);
   void operator()(const sf::Event::FocusGained &);
+  void operator()(const sf::Event::JoystickConnected &);
+  void operator()(const sf::Event::JoystickDisconnected &);
   void operator()(const auto &) {}
 };
