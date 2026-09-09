@@ -3,5 +3,6 @@
     "windowSize": [800, 800],
     "disableSfmlLogs": true,
     "maximumDeltaTime": 0.03,
-    "globalVolume": 100
+    "globalVolume": 100,
+    "backgroundColor": [255, 255, 255]
 }

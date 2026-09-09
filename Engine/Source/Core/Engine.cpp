@@ -34,6 +34,9 @@ void Engine::Update() { context_.time.Update(); }
 void Engine::Render() {
   window_.clear();
 
+  context_.renderer.BeginDrawing();
+  window_.draw(sf::Sprite(context_.renderer.FinishDrawing()));
+
   window_.display();
 }
 
