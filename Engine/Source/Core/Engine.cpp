@@ -4,7 +4,8 @@
 
 Engine::Engine()
     : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
-              gConfig.windowTitle) {
+              gConfig.windowTitle),
+      context_(window_) {
   window_.setIcon(sf::Image("Content/Textures/Icon.png"));
   window_.setMinimumSize(window_.getSize() / 2u);
   window_.setKeyRepeatEnabled(false);
@@ -59,3 +60,5 @@ void Engine::EventGamepadConnected(int id) {
 void Engine::EventGamepadDisconnected(int id) {
   LOG_INFO("Gamepad {} disconnected", id);
 }
+
+void Engine::EventWindowScreenshot() const { context_.screenshot.Take(); }

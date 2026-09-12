@@ -26,4 +26,5 @@ private:
   void EventWindowFocusGained();
   void EventGamepadConnected(int id);
   void EventGamepadDisconnected(int id);
+  void EventWindowScreenshot() const;
 };
