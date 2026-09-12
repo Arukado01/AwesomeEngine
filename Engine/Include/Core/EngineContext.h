@@ -4,6 +4,7 @@
 
 #include "Managers/AudioManager.h"
 #include "Managers/ClipboardManager.h"
+#include "Managers/CursorManager.h"
 #include "Managers/InputManager.h"
 #include "Managers/RandomManager.h"
 #include "Managers/RenderManager.h"
@@ -22,6 +23,8 @@ struct EngineContext {
   InputManager input;
   RenderManager renderer;
   ScreenshotManager screenshot;
+  CursorManager cursor;
 
-  EngineContext(sf::RenderWindow &window) : screenshot(window) {}
+  EngineContext(sf::RenderWindow &window)
+      : screenshot(window), cursor(window) {}
 };
