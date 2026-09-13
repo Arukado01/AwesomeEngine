@@ -27,7 +27,9 @@ bool Engine::IsRunning() const { return window_.isOpen(); }
 
 void Engine::ProcessEvent() {
   while (const auto event = window_.pollEvent()) {
+
     event->visit(EngineVisitor{*this});
+    context_.gui.ProcessEvent(*event);
   }
 }
 
@@ -42,6 +44,7 @@ void Engine::Render() {
   context_.renderer.BeginDrawing();
   window_.draw(sf::Sprite(context_.renderer.FinishDrawing()));
 
+  context_.gui.Render();
   context_.cursor.Render();
 
   window_.display();

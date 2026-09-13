@@ -4,8 +4,8 @@
 #include <variant>
 
 enum class GamepadButton {
-  west,
-  south,
+  West,
+  South,
   East,
   North,
   L1,
