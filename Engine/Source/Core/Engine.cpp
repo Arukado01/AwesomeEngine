@@ -26,6 +26,11 @@ Engine::Engine()
 bool Engine::IsRunning() const { return window_.isOpen(); }
 
 void Engine::ProcessEvent() {
+
+  if (const auto nextScene = context_.scenes.FetchNextScene()) {
+    EventSceneChange(*nextScene);
+  }
+
   while (const auto event = window_.pollEvent()) {
 
     event->visit(EngineVisitor{*this});
@@ -71,3 +76,11 @@ void Engine::EventGamepadDisconnected(int id) {
 }
 
 void Engine::EventWindowScreenshot() const { context_.screenshot.Take(); }
+
+void Engine::EventSceneChange(const std::string &name) {
+  // TODO: Implementa la logica del cambio de escena
+}
+
+void Engine::EventSceneRestart() { context_.scenes.RestartCurrentScene(); }
+
+void Engine::EventSceneMenuReturn() { context_.scenes.ChangeScene("Menu"); }

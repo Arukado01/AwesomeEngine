@@ -11,6 +11,7 @@
 #include "Managers/RenderManager.h"
 #include "Managers/ResourceManager.h"
 #include "Managers/SaveManager.h"
+#include "Managers/SceneManager.h"
 #include "Managers/ScreenshotManager.h"
 #include "Managers/TimeManager.h"
 
@@ -26,6 +27,7 @@ struct EngineContext {
   ScreenshotManager screenshot;
   CursorManager cursor;
   GuiManager gui;
+  SceneManager scenes;
 
   EngineContext(sf::RenderWindow &window)
       : screenshot(window), cursor(window), gui(window) {}
