@@ -1,0 +1,29 @@
+{
+    "cmake.configureOnOpen": false,
+    "cmake.buildDirectory": "${workspaceFolder}/Build",
+    "cmake.generator": "Ninja",
+    "clangd.semanticHighlighting": false,
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/Build",
+        "--query-driver=C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/c++.exe"
+    ],
+    "files.exclude": {
+        ".clangd": true
+    },
+    "editor.tokenColorCustomizations": {
+        "textMateRules": [
+            {
+                "scope": "variable.other.object.access.cpp",
+                "settings": { "foreground": "#9CDCFE" }
+            },
+            {
+                "scope": "variable.other.property.cpp",
+                "settings": { "foreground": "#9CDCFE" }
+            }
+        ]
+    },
+    "cSpell.words": [
+        "redimensionar",
+        "Sfml"
+    ]
+}

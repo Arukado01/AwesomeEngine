@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Run AwesomeEngine (Debug)",
+            "type": "cppdbg",
+            "MIMode": "gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/Build/AwesomeEngine.exe",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "${defaultBuildTask}"
+        }
+    ]
+}

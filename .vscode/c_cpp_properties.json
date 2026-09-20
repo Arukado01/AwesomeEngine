@@ -1,0 +1,23 @@
+{
+  "configurations": [
+    {
+      "name": "Win32",
+      "compilerPath": "C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/c++.exe",
+      "intelliSenseMode": "windows-gcc-x64",
+      "cppStandard": "c++20",
+      "compileCommands": "${workspaceFolder}/Build/compile_commands.json",
+      "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/Build/_deps/sfml-src/include",
+        "C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/include/c++/15.2.0",
+        "C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/include/c++/15.2.0/x86_64-w64-mingw32",
+        "C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/include/c++/15.2.0/backward",
+        "C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include",
+        "C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/include",
+        "C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include-fixed",
+        "C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/x86_64-w64-mingw32/include"
+      ]
+    }
+  ],
+  "version": 4
+}

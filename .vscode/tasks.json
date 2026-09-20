@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build AwesomeEngine (Debug)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/Build",
+                "--config",
+                "Debug",
+                "-j"
+            ],
+            "group": "build",
+            "problemMatcher": ["$cmake-build"]
+        },
+        {
+            "label": "Rebuild AwesomeEngine (Debug)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/Build",
+                "--config",
+                "Debug",
+                "--clean-first",
+                "-j"
+            ],
+            "group": "build",
+            "problemMatcher": ["$cmake-build"]
+        }
+    ]
+}

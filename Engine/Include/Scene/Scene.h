@@ -18,6 +18,6 @@ public:
   virtual void Render() const = 0;
 
   virtual void OnEvent(const sf::Event &) {};
-  virtual void OnPause(bool /* pausa */);
+  virtual void OnPause(bool /* pausa */) {};
   virtual void OnCleanup() {};
 };

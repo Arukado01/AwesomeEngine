@@ -3,16 +3,16 @@
 #include <array>
 
 namespace Mapping {
-const std::array<int, 12> PlayStation = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-const std::array<int, 12> Xbox = {2, 0, 1, 3, 4, 5, -1, -1, 6, 7, 8, 9};
+  const std::array<int, 12> PlayStation = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+  const std::array<int, 12> Xbox = {2, 0, 1, 3, 4, 5, -1, -1, 6, 7, 8, 9};
 
-// const int SonyVID = 0x054C;
-const int MicrosoftVID = 0x045E;
+  // const int SonyVID = 0x054C;
+  const int MicrosoftVID = 0x045E;
 
-const auto &GetMapping(int id) {
-  const int vendorId = sf::Joystick::getIdentification(id).vendorId;
-  return (vendorId == MicrosoftVID) ? Xbox : PlayStation;
-}
+  const auto &GetMapping(int id) {
+    const int vendorId = sf::Joystick::getIdentification(id).vendorId;
+    return (vendorId == MicrosoftVID) ? Xbox : PlayStation;
+  }
 
 } // namespace Mapping
 

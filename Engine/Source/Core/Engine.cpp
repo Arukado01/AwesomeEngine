@@ -3,7 +3,7 @@
 #include "Core/Overlay.h"
 #include "Utils/Log.h"
 
-// Constructor
+/** Constructor */
 Engine::Engine() : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
                            gConfig.windowTitle),
                    context_(window_),
@@ -12,21 +12,20 @@ Engine::Engine() : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
                    overlay_(context_.gui),
                    cursorWasVisible_(true) {
 
-  // Configuración inicial de la ventana
+  /**  Configuración inicial de la ventana */
   window_.setIcon(sf::Image("Content/Textures/Icon.png"));
   window_.setMinimumSize(window_.getSize() / 2u); // Mitad del tamaño actual como mínimo
   window_.setKeyRepeatEnabled(false); // Evita repetición de teclas al mantener presionadas
   window_.setMouseCursorVisible(false); // Oculta el cursor del sistema (AwesomeEngine dibuja el suyo)
 
-  // Si disableSfmlLogs es true, silencia los logs propios de SFML (redirige el stream de errores a null para usar el sistema propio de logs)
-  if (gConfig.disableSfmlLogs) {
+  if (gConfig.disableSfmlLogs) { // Si disableSfmlLogs es true, silencia los logs propios de SFML (redirige el stream de errores a null para usar el sistema propio de logs)
     sf::err().rdbuf(nullptr);
   }
 
-  // Aplica el volumen global de audio definido en la configuración
-  context_.audio.SetGlobalVolume(gConfig.globalVolume);
-
   LOG_INFO("Window created");
+
+  context_.audio.SetGlobalVolume(gConfig.globalVolume); // Aplica el volumen global de audio definido en la configuración
+  context_.scenes.ChangeScene("Bounce");
 }
 
 /** Indica si el bucle principal debe seguir ejecutándose */
@@ -34,38 +33,32 @@ bool Engine::IsRunning() const { return window_.isOpen(); }
 
 /** Procesa todos los eventos de la ventana pendientes en este frame */
 void Engine::ProcessEvent() {
-  // Si hay un cambio de escena pendiente, lo aplica antes de procesar eventos
-  if (const auto nextScene = context_.scenes.FetchNextScene()) {
+  if (const auto nextScene = context_.scenes.FetchNextScene()) { // Si hay un cambio de escena pendiente, lo aplica antes de procesar eventos
     EventSceneChange(*nextScene);
   }
 
-  // Extrae y reparte cada evento de la cola de la ventana
-  while (const auto event = window_.pollEvent()) {
+  while (const auto event = window_.pollEvent()) { // Extrae y reparte cada evento de la cola de la ventana
 
     event->visit(EngineVisitor{*this}); // El visitor maneja eventos globales del motor (cerrar, redimensionar, etc.)
     context_.gui.ProcessEvent(*event); // La GUI procesa el evento para sus propios widgets
 
-    // Reenviamos los eventos a la escena actual solo si overlay está oculta durante la actualización.
-    if (!overlay_.IsVisible()) {
+    if (!overlay_.IsVisible()) { // Reenviamos los eventos a la escena actual solo si el overlay está oculto (durante la pausa la GUI consume la interacción)
       currentScene_->OnEvent(*event); // La escena actual reacciona al evento
     }
   }
 
-  // Si el usuario seleccionó una opción del overlay de pausa,
-  // la consume y la procesa (FetchSelection devuelve vacío tras leerla)
-  if (const auto selection = overlay_.FetchSelection()) {
+  if (const auto selection = overlay_.FetchSelection()) { // Si el usuario seleccionó una opción del overlay de pausa, la consume y la procesa (FetchSelection devuelve vacío tras leerla)
     EventOverlaySelect(*selection);
   }
 }
 
 /** Actualiza la lógica del juego una vez por frame */
 void Engine::Update() {
-  // Actualiza el tiempo y el cursor con el delta time del frame
-  context_.time.Update();
-  context_.cursor.Update(context_.time.GetDeltaTime());
 
-  // Reenviamos los eventos a la escena actual solo si overlay está oculta durante la actualización.
-  if (!overlay_.IsVisible()) {
+  context_.time.Update(); // Actualiza el tiempo con el delta time del frame
+  context_.cursor.Update(context_.time.GetDeltaTime()); // Actualiza el cursor con el delta time del frame
+
+  if (!overlay_.IsVisible()) { // Actualizamos la escena solo si el overlay está oculto (con la pausa abierta el juego se congela)
     currentScene_->Update(); // Actualiza la lógica de la escena actual
   }
 }
@@ -74,14 +67,12 @@ void Engine::Update() {
 void Engine::Render() {
   window_.clear(); // Limpia el frame anterior
 
-  // Renderiza la escena a un buffer intermedio y luego lo dibuja en la ventana
-  context_.renderer.BeginDrawing();
+  context_.renderer.BeginDrawing(); // Renderiza la escena a un buffer intermedio ->
   currentScene_->Render();
-  window_.draw(sf::Sprite(context_.renderer.FinishDrawing()));
+  window_.draw(sf::Sprite(context_.renderer.FinishDrawing())); // -> y luego lo dibuja en la ventana
 
-  // Encima de la escena se dibujan la GUI y el cursor personalizado
-  context_.gui.Render();
-  context_.cursor.Render();
+  context_.gui.Render(); // Encima de la escena se dibuja la GUI
+  context_.cursor.Render(); // y también el cursor personalizado
 
   window_.display(); // Muestra el frame terminado
 }
@@ -103,7 +94,7 @@ void Engine::EventWindowFocusLost() {
   LOG_INFO("Window focus lost");
 }
 
-/** Evento: la ventana recuperó el foco (la escena se reanuda) */
+/** Evento: la ventana recuperó el foco (la escena se reanuda, salvo que el overlay esté abierto, en cuyo caso sigue pausada) */
 void Engine::EventWindowFocusGained() {
   currentScene_->OnPause(overlay_.IsVisible());
   LOG_INFO("Window focus gained");
@@ -159,12 +150,12 @@ void Engine::EventSceneMenuReturn() {
 
 /** Evento: alterna el estado de pausa (muestra/oculta el overlay de pausa) y pausa/reanuda la escena en consecuencia */
 void Engine::EventOverlayPauseToggle() {
-  // Calcula el nuevo estado: si estaba oculto, ahora se muestra (y viceversa)
-  const bool overlayVisible = !overlay_.IsVisible();
+
+  const bool overlayVisible = !overlay_.IsVisible(); // Calcula el nuevo estado: si estaba oculto, ahora se muestra (y viceversa)
   overlay_.SetVisible(overlayVisible);
 
   const bool cursorVisible = context_.cursor.IsVisible(); // Cursor: guarda su visibilidad actual antes de modificarla
-  context_.cursor.SetVisible(overlayVisible || cursorWasVisible_); // Con el overlay abierto se oculta el cursor del juego; al cerrarlo se recupera la visibilidad que tenía antes de la pausa
+  context_.cursor.SetVisible(overlayVisible || cursorWasVisible_); // Con el overlay abierto el cursor siempre se muestra (para navegar la GUI); al cerrarlo se recupera la visibilidad previa a la pausa
   cursorWasVisible_ = cursorVisible; // Recuerda el estado para restaurarlo luego
 
   currentScene_->OnPause(overlayVisible); // Pausa la escena al abrir el overlay; la reanuda al cerrarlo

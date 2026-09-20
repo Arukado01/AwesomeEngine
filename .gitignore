@@ -36,7 +36,6 @@ _deps/
 *-tmp/
 
 # IDEs y editores
-.vscode/
 .vs/
 .idea/
 *.suo
@@ -63,3 +62,5 @@ Thumbs.db
 HighScores.txt
 
 Content/Screenshots
+
+*.cache
