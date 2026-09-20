@@ -2,6 +2,7 @@
 
 #include "Core/EngineContext.h"
 #include "Core/EngineVisitor.h"
+#include "Core/Overlay.h"
 #include "Scene/SceneFactory.h"
 #include <SFML/Graphics.hpp>
 
@@ -12,6 +13,9 @@ private:
 
   SceneFactory::Scenes scenes_;
   Scene *currentScene_;
+
+  Overlay overlay_;
+  bool cursorWasVisible_;
 
 public:
   Engine();
@@ -34,4 +38,6 @@ private:
   void EventSceneChange(const std::string &name);
   void EventSceneRestart();
   void EventSceneMenuReturn();
+  void EventOverlayPauseToggle();
+  void EventOverlaySelect(OverlaySelection selection);
 };
