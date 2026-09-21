@@ -2,7 +2,7 @@
 #include <fstream>
 
 SaveManager::SaveManager() {
-  if (std::ifstream file{"Content/save.json"}) {
+  if (std::ifstream file{"Content/Save.json"}) {
     values_ = nlohmann::json::parse(file);
   } else {
     values_ = nlohmann::json::object();

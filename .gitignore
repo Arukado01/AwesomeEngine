@@ -64,3 +64,5 @@ HighScores.txt
 Content/Screenshots
 
 *.cache
+
+Save.json
