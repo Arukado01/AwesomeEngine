@@ -21,6 +21,7 @@ public:
   Engine();
 
   bool IsRunning() const;
+  bool HasFocus() const;
 
   void ProcessEvent();
   void Update();

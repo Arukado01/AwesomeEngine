@@ -31,6 +31,11 @@ Engine::Engine() : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
 /** Indica si el bucle principal debe seguir ejecutándose */
 bool Engine::IsRunning() const { return window_.isOpen(); }
 
+/** Devuelve verdadero si la ventana tiene el focus actualmente. */
+bool Engine::HasFocus() const {
+  return window_.hasFocus();
+}
+
 /** Procesa todos los eventos de la ventana pendientes en este frame */
 void Engine::ProcessEvent() {
   if (const auto nextScene = context_.scenes.FetchNextScene()) { // Si hay un cambio de escena pendiente, lo aplica antes de procesar eventos
