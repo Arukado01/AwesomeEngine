@@ -10,3 +10,4 @@ CompileFlags:
     - -fmodules-ts
     - -fmodule-mapper=*
     - -fdeps-format=*
+    - -fno-keep-inline-dllexport

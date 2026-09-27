@@ -1,5 +1,13 @@
 #include "Managers/RenderManager.h"
+
+#include <utility>
+
+#include "Graphics/Effects/EffectBloom.h"
+#include "Graphics/Effects/EffectMonitor.h"
+#include "Graphics/Effects/EffectGlitch.h"
+
 #include "Core/EngineConfig.h"
+#include "Utils/Verify.h"
 
 RenderManager::RenderManager()
     : target_(sf::Vector2u(gConfig.windowSize)),
@@ -9,6 +17,15 @@ RenderManager::RenderManager()
 
   background_.setTexture(&backgroundTexture_);
   background_.setFillColor(gConfig.backgroundColor);
+
+  if (sf::Shader::isAvailable()) {
+    VERIFY(effectsTarget_.resize(sf::Vector2u(gConfig.windowSize)));
+
+    // Post Process Effects
+    effects_.emplace_back(std::make_unique<EffectBloom>());
+    effects_.emplace_back(std::make_unique<EffectMonitor>());
+    effects_.emplace_back(std::make_unique<EffectGlitch>());
+  }
 }
 
 void RenderManager::Draw(const sf::Drawable &drawable) {
@@ -26,5 +43,17 @@ void RenderManager::BeginDrawing() {
 
 const sf::Texture &RenderManager::FinishDrawing() {
   target_.display();
-  return target_.getTexture();
+
+  sf::RenderTexture *input = &target_;
+  sf::RenderTexture *output = &effectsTarget_;
+
+  for (auto &effect : effects_) {
+    output->clear();
+    effect->Apply(input->getTexture(), *output);
+    output->display();
+
+    std::swap(input, output);
+  }
+
+  return input->getTexture();
 }

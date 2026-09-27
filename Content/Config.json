@@ -4,7 +4,7 @@
     "disableSfmlLogs": true,
     "maximumDeltaTime": 0.03,
     "globalVolume": 100,
-    "backgroundColor": [255, 255, 255],
+    "backgroundColor": [100, 100, 100],
     "cursorRadius": 5,
     "cursorSpeed": 800,
     "cursorColor": [255, 100, 0],
