@@ -28,7 +28,7 @@ void EngineVisitor::operator()(
 }
 
 void EngineVisitor::operator()(const sf::Event::KeyPressed &key) {
-  if (key.scancode == sf::Keyboard::Scan::PrintScreen) {
+  if (key.scancode == sf::Keyboard::Scan::F12) {
     engine.EventWindowScreenshot();
   }
 

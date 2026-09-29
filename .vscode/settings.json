@@ -26,9 +26,12 @@
         "direccion",
         "Inicializacion",
         "Inicialización",
+        "muestrear",
         "Puntaje",
         "redimensionar",
         "resetea",
-        "Sfml"
+        "Sfml",
+        "texel",
+        "texels"
     ]
 }
