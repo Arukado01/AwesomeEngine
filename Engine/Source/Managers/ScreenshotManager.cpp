@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <filesystem>
 #include <format>
 #include <string>
 
@@ -27,6 +28,9 @@ void ScreenshotManager::Take() const {
 
   sf::Texture screenshot(window_.getSize());
   screenshot.update(window_);
+
+  std::error_code ec;
+  std::filesystem::create_directories("Content/Screenshots", ec);
 
   if (screenshot.copyToImage().saveToFile("Content/Screenshots/" + filename)) {
     LOG_INFO("Screenshot saved as {}", filename);
