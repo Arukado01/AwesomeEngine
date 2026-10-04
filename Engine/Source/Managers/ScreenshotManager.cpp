@@ -9,10 +9,19 @@
 #include <format>
 #include <string>
 
+#include "Core/EngineConfig.h"
 #include "Utils/Log.h"
 
 ScreenshotManager::ScreenshotManager(const sf::RenderWindow &window)
-    : window_(window) {}
+    : window_(window),
+      soundBuffer_("Content/Sounds/screenshot.mp3"),
+      sound_(MakeSound(soundBuffer_)) {}
+
+sf::Sound ScreenshotManager::MakeSound(sf::SoundBuffer &buffer) {
+  sf::Sound sound(buffer);
+  sound.setVolume(gConfig.globalVolume);
+  return sound;
+}
 
 void ScreenshotManager::Take() const {
   auto now = std::chrono::system_clock::now();
@@ -34,6 +43,7 @@ void ScreenshotManager::Take() const {
 
   if (screenshot.copyToImage().saveToFile("Content/Screenshots/" + filename)) {
     LOG_INFO("Screenshot saved as {}", filename);
+    sound_.play();
   } else {
     LOG_WARNING("Failed to save screenshot to {}", filename);
   }
