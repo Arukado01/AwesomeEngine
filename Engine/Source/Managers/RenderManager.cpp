@@ -24,7 +24,7 @@ RenderManager::RenderManager()
     // Post Process Effects
     effects_.emplace_back(std::make_unique<EffectBloom>());
     effects_.emplace_back(std::make_unique<EffectMonitor>());
-    effects_.emplace_back(std::make_unique<EffectGlitch>());
+    // effects_.emplace_back(std::make_unique<EffectGlitch>());
   }
 }
 
