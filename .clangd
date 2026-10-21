@@ -1,13 +1,8 @@
 CompileFlags:
-  Add:
-    - --target=x86_64-w64-mingw32
-    - --gcc-toolchain=C:/Users/Arukado/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64
-    - -I
-    - D:/Proyectos/SFML/AwesomeEngine/Engine/Include
-    - -I
-    - D:/Proyectos/SFML/AwesomeEngine/Games/Include
   Remove:
     - -fmodules-ts
     - -fmodule-mapper=*
     - -fdeps-format=*
-    - -fno-keep-inline-dllexport
+
+Diagnostics:
+  UnusedIncludes: None

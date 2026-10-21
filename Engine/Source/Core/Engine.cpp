@@ -25,7 +25,7 @@ Engine::Engine() : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
   LOG_INFO("Window created");
 
   context_.audio.SetGlobalVolume(gConfig.globalVolume); // Aplica el volumen global de audio definido en la configuración
-  context_.scenes.ChangeScene("Clicker");
+  context_.scenes.ChangeScene("Memory Card");
 }
 
 /** Indica si el bucle principal debe seguir ejecutándose */

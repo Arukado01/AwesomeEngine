@@ -12,7 +12,10 @@
                 "Debug",
                 "-j"
             ],
-            "group": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "problemMatcher": ["$cmake-build"]
         },
         {
