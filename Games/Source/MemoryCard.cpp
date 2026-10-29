@@ -65,7 +65,7 @@ void Game::EventCardsSpawn() {
   for (int i = 0; i < count; i++) {
     /* Cada carta ocupa una celda: tamaño = ventana / grilla, posición según índice. */
     sf::Vector2f size = gConfig.windowSize.componentWiseDiv({(float)cols, (float)rows});
-    sf::Vector2f position(size.x * (i % cols), size.y * (i / cols));
+    sf::Vector2f position(size.x * (i % cols), size.y * static_cast<float>(i / cols));
 
     EventCardSpawn({position, size}, colors[i]);
   }
