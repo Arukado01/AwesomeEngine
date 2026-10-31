@@ -7,7 +7,7 @@ namespace TicTacToe {
 
   const int CELL_TEXT_SIZE = 115;
 
-  const float RESTART_COOLDOWN_DURATION = 1.5f;
+  const float RESTART_COOLDOWN_DURATION = 2.0f;
   const float AI_TURN_COOLDOWN_DURATION = 0.5f;
 
   const sf::Color CELL_COLOR(10, 10, 25);
@@ -18,4 +18,7 @@ namespace TicTacToe {
   const float CELL_WINNING_LINE_THICKNESS = 12.f;
   const sf::Color CELL_WINNING_LINE_COLOR(sf::Color::White);
   const float CELL_WINNING_LINE_OVERHANG = 40.f;
+
+  const int RESULT_TEXT_SIZE = 90;
+  const int RESULT_TEXT_OUTLINE_THICKNESS = 7;
 } // namespace TicTacToe

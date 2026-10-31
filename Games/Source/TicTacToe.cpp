@@ -45,6 +45,7 @@ void Game::Start() {
   StartTurn();
   StartRestartCooldown();
   StartWinningLine();
+  StartResultText();
 }
 
 /* Recorre la matriz fila por fila para limpiar todas las celdas. */
@@ -75,6 +76,11 @@ void Game::StartRestartCooldown() {
 /* Raya de victoria recién nacida: tamaño 0 = invisible. */
 void Game::StartWinningLine() {
   winningLine.setSize({0.f, 0.f});
+}
+
+/*  Mensaje de resultado vacío de nacimiento: solo debe verse durante el aviso de fin de partida. */
+void Game::StartResultText() {
+  resultText.setString("");
 }
 
 /* Al pulsar mouse o botón del mando, el humano intenta jugar (solo si es su turno). */
@@ -139,13 +145,16 @@ void Game::EventCellPlace(sf::Vector2i position) {
 void Game::EventCheckGrid() {
   if (IsWin('X')) {
     EventWinningLineSpawn('X'); // marca en pantalla las 3 casillas ganadoras
+    EventResultTextSpawn('X'); // anuncio "¡La X gana!"
     LOG_INFO("You Win!");
     restartCooldown.Start();
   } else if (IsWin('O')) {
     EventWinningLineSpawn('O');
+    EventResultTextSpawn('O');
     LOG_INFO("You Lose!");
     restartCooldown.Start();
   } else if (IsGridFull()) {
+    EventResultTextSpawn(' '); // ' ' = nadie ganó: anuncio de empate
     LOG_INFO("Draw!");
     restartCooldown.Start();
   }
@@ -167,6 +176,21 @@ void Game::EventWinningLineSpawn(char symbol) {
   winningLine.setOrigin({0.f, CELL_WINNING_LINE_THICKNESS / 2.f}); // agarre en el centro-izquierda: al rotar no se despega del borde
   winningLine.setPosition(first - direction * CELL_WINNING_LINE_OVERHANG); // el arranque retrocede fuera de la primera ficha
   winningLine.setRotation(sf::radians(std::atan2(delta.y, delta.x))); // atan2 da el ángulo de la flecha (0° filas, 90° columnas, 45°/135° diagonales)
+}
+
+/* Anuncia en el centro de la pantalla quién ganó (o empate), con el color del ganador y borde para que destaque sobre las fichas. */
+void Game::EventResultTextSpawn(char symbol) {
+  // std::wstring: SFML lo lleva a Unicode de verdad; un std::string con '¡' UTF-8 se pinta como "Â¡"
+  std::wstring message = symbol == 'X' ? L"¡La X gana!" : symbol == 'O' ? L"¡La O gana!" : L"¡Empate!";
+  sf::Color color = symbol == 'X' ? CELL_SYMBOL_X_COLOR : symbol == 'O' ? CELL_SYMBOL_O_COLOR : CELL_OUTLINE_COLOR;
+
+  resultText.setString(message);
+  resultText.setCharacterSize(RESULT_TEXT_SIZE);
+  resultText.setFillColor(color);
+  resultText.setOutlineColor(CELL_COLOR); // borde casi negro: recorta el texto del mismo color que las fichas de fondo
+  resultText.setOutlineThickness(RESULT_TEXT_OUTLINE_THICKNESS);
+  resultText.setOrigin(resultText.getLocalBounds().getCenter()); // centrado tras conocer su tamaño real
+  resultText.setPosition(gConfig.windowSize / 2.f); // centro de la ventana
 }
 
 /* Píxel del cursor ÷ tamaño de celda = índice de casilla (con swap por la convención fila/columna del juego). */
@@ -278,7 +302,7 @@ bool Game::IsGridFull() const {
   });
 }
 
-/* Pinta cada frame: casillas, letras y por encima la raya de victoria si existe (último dibujo = capa superior). */
+/* Pinta cada frame: casillas, letras, raya de victoria y por encima el anuncio de resultado. */
 void Game::Render() const {
   for (const auto &row : grid.cells) {
     for (const auto &cell : row) {
@@ -288,4 +312,6 @@ void Game::Render() const {
   }
 
   ctx.renderer.Draw(winningLine);
+
+  ctx.renderer.Draw(resultText); // el anuncio, la capa más alta de todas
 }

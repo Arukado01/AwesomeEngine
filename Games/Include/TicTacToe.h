@@ -12,6 +12,7 @@ namespace TicTacToe {
     Cooldown aiCooldown;
     Cooldown restartCooldown;
     sf::RectangleShape winningLine;
+    sf::Text resultText{GetDefaultFont()};
 
   public:
     Game(EngineContext &);
@@ -30,12 +31,14 @@ namespace TicTacToe {
     void StartTurn();
     void StartRestartCooldown();
     void StartWinningLine();
+    void StartResultText();
 
     void EventPlayTurn();
     void EventPlayAITurn();
     void EventCellPlace(sf::Vector2i position);
     void EventCheckGrid();
     void EventWinningLineSpawn(char symbol);
+    void EventResultTextSpawn(char symbol);
 
     sf::Vector2i GetCellPositionCursor() const;
     sf::Vector2f GetCellCenter(const sf::Vector2i &position) const;
