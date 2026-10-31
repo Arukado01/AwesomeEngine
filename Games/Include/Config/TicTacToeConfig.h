@@ -14,4 +14,8 @@ namespace TicTacToe {
   const sf::Color CELL_OUTLINE_COLOR(100, 150, 225);
   const sf::Color CELL_SYMBOL_X_COLOR(90, 90, 200);
   const sf::Color CELL_SYMBOL_O_COLOR(200, 90, 90);
+
+  const float CELL_WINNING_LINE_THICKNESS = 12.f;
+  const sf::Color CELL_WINNING_LINE_COLOR(sf::Color::White);
+  const float CELL_WINNING_LINE_OVERHANG = 40.f;
 } // namespace TicTacToe
