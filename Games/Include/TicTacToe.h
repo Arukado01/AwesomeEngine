@@ -9,6 +9,7 @@ namespace TicTacToe {
   private:
     Grid grid;
     bool isXTurn;
+    Cooldown aiCooldown;
     Cooldown restartCooldown;
 
   public:
@@ -29,6 +30,7 @@ namespace TicTacToe {
     void StartRestartCooldown();
 
     void EventPlayTurn();
+    void EventPlayAITurn();
     void EventCellPlace(sf::Vector2i position);
     void EventCheckGrid();
 

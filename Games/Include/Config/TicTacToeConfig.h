@@ -8,6 +8,7 @@ namespace TicTacToe {
   const int CELL_TEXT_SIZE = 115;
 
   const float RESTART_COOLDOWN_DURATION = 1.5f;
+  const float AI_TURN_COOLDOWN_DURATION = 0.5f;
 
   const sf::Color CELL_COLOR(10, 10, 25);
   const sf::Color CELL_OUTLINE_COLOR(100, 150, 225);

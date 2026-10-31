@@ -3,6 +3,7 @@
 using namespace TicTacToe;
 
 Game::Game(EngineContext &context) : Scene(context),
+                                     aiCooldown(AI_TURN_COOLDOWN_DURATION),
                                      restartCooldown(RESTART_COOLDOWN_DURATION) {
   InitGrid();
 }
@@ -63,22 +64,37 @@ void Game::OnEvent(const sf::Event &event) {
   if (event.is<sf::Event::MouseButtonPressed>() ||
       event.is<sf::Event::JoystickButtonPressed>()) {
     EventPlayTurn();
-    EventPlayTurn();
   }
 }
 
 void Game::Update() {
   if (restartCooldown.IsOver()) {
     ctx.scenes.RestartCurrentScene();
+  } else if (!restartCooldown.IsRunning() && !isXTurn && aiCooldown.IsOver()) {
+    EventPlayAITurn();
   }
 }
 
 void Game::EventPlayTurn() {
-  if (restartCooldown.IsRunning()) {
+  if (restartCooldown.IsRunning() || !isXTurn) {
     return;
   }
 
-  sf::Vector2i position = isXTurn ? GetCellPositionCursor() : GetCellPositionAI();
+  sf::Vector2i position = GetCellPositionCursor();
+
+  if (IsCellPositionValid(position)) {
+    EventCellPlace(position);
+    isXTurn = !isXTurn;
+    EventCheckGrid();
+
+    if (!restartCooldown.IsRunning()) {
+      aiCooldown.Restart();
+    }
+  }
+}
+
+void Game::EventPlayAITurn() {
+  sf::Vector2i position = GetCellPositionAI();
 
   if (IsCellPositionValid(position)) {
     EventCellPlace(position);
