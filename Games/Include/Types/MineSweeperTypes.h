@@ -13,6 +13,7 @@ namespace MineSweeper {
     sf::RectangleShape background;
     sf::CircleShape mine;
     sf::CircleShape flag;
+    sf::Text mineCross{GetDefaultFont()};
     sf::Text adjacentCountText{GetDefaultFont()};
   };
 
@@ -30,6 +31,7 @@ namespace MineSweeper {
   struct Stats {
     bool firstClick;
     int flagCount;
+    bool gameOver;
     sf::Text mineCountText{GetDefaultFont()};
   };
 } // namespace MineSweeper

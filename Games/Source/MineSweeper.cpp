@@ -35,6 +35,12 @@ void Game::InitGridCell(Cell &cell, sf::FloatRect bounds) {
   cell.visual.mine.setOrigin(cell.visual.mine.getGeometricCenter());
   cell.visual.mine.setPosition(bounds.position);
 
+  cell.visual.mineCross.setString("X");
+  cell.visual.mineCross.setCharacterSize(CELL_MINE_CROSS_SIZE);
+  cell.visual.mineCross.setFillColor(CELL_MINE_CROSS_COLOR);
+  cell.visual.mineCross.setOrigin(cell.visual.mineCross.getLocalBounds().getCenter());
+  cell.visual.mineCross.setPosition(bounds.position);
+
   cell.visual.flag.setFillColor(CELL_FLAG_COLOR);
   cell.visual.flag.setRadius(CELL_SIZE / 4);
   cell.visual.flag.setPointCount(3);
@@ -75,7 +81,9 @@ void Game::StartGridCell(Cell &cell) {
 void Game::StartStats() {
   stats.firstClick = true;
   stats.flagCount = 0;
+  stats.gameOver = false;
   stats.mineCountText.setString("Mines: " + std::to_string(STATS_MINE_COUNT));
+  resultText.setString(""); // el aviso de partida anterior muere aquí
 }
 
 void Game::OnEvent(const sf::Event &event) {
@@ -186,6 +194,7 @@ void Game::EventCellReveal(sf::Vector2i position) {
   if (cell.mined) {
     LOG_INFO("You Lose!");
     EventGridReveal();
+    EventResultTextSpawn(false);
     return;
   }
 
@@ -196,6 +205,7 @@ void Game::EventCellReveal(sf::Vector2i position) {
   if (IsWin()) {
     LOG_INFO("You Win!");
     EventGridReveal();
+    EventResultTextSpawn(true);
   }
 }
 
@@ -229,14 +239,29 @@ void Game::EventCellRevealAdjacentZeros(sf::Vector2i position) {
 void Game::EventGridReveal() {
   for (auto &row : grid.cells) {
     for (auto &cell : row) {
-      if (cell.mined) {
+      // las minas marcadas conservan su Flagged: mueren al render como círculo + X (desactivada)
+      if (cell.mined && cell.state != CellState::Flagged) {
         cell.state = CellState::Revealed;
         cell.visual.background.setFillColor(CELL_REVEALED_COLOR);
       }
     }
   }
 
+  stats.gameOver = true;
   restartCooldown.Start();
+}
+
+void Game::EventResultTextSpawn(bool win) {
+  // std::wstring: SFML lo lleva a Unicode de verdad; un std::string con '¡' UTF-8 se pinta como "Â¡"
+  std::wstring message = win ? L"¡GANASTE!" : L"¡PERDISTE!";
+
+  resultText.setString(message);
+  resultText.setCharacterSize(RESULT_TEXT_SIZE);
+  resultText.setFillColor(win ? RESULT_WIN_COLOR : RESULT_LOSE_COLOR);
+  resultText.setOutlineColor(RESULT_OUTLINE_COLOR);
+  resultText.setOutlineThickness(RESULT_TEXT_OUTLINE_THICKNESS);
+  resultText.setOrigin(resultText.getLocalBounds().getCenter()); // centrado tras conocer su tamaño real
+  resultText.setPosition(gConfig.windowSize / 2.f); // centro de la ventana
 }
 
 void Game::EventFlagToggleAsk() {
@@ -310,13 +335,20 @@ void Game::Render() const {
   }
 
   ctx.renderer.Draw(stats.mineCountText);
+
+  ctx.renderer.Draw(resultText); // el anuncio, la capa más alta de todas
 }
 
 void Game::RenderCell(const Cell &cell) const {
   ctx.renderer.Draw(cell.visual.background);
 
   if (cell.state == CellState::Flagged) {
-    ctx.renderer.Draw(cell.visual.flag);
+    if (stats.gameOver && cell.mined) {
+      ctx.renderer.Draw(cell.visual.mine);    // círculo: la mina marcada acertadamente...
+      ctx.renderer.Draw(cell.visual.mineCross); // ...y una X más grande encima: mina desactivada
+    } else {
+      ctx.renderer.Draw(cell.visual.flag);
+    }
   } else if (cell.state == CellState::Revealed) {
     if (cell.mined) {
       ctx.renderer.Draw(cell.visual.mine);

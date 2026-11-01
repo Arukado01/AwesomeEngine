@@ -8,6 +8,7 @@ namespace MineSweeper {
     Grid grid;
     Stats stats;
     Cooldown restartCooldown;
+    sf::Text resultText{GetDefaultFont()};
 
   public:
     Game(EngineContext &);
@@ -36,6 +37,7 @@ namespace MineSweeper {
     void EventCellReveal(sf::Vector2i position);
     void EventCellRevealAdjacentZeros(sf::Vector2i position);
     void EventGridReveal();
+    void EventResultTextSpawn(bool win);
     void EventFlagToggleAsk();
     void EventFlagToggle(sf::Vector2i position);
 
