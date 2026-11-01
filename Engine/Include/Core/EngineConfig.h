@@ -7,6 +7,7 @@
 struct EngineConfig {
   std::string windowTitle;
   sf::Vector2f windowSize;
+  unsigned int frameRateLimit;
   bool disableSfmlLogs;
   sf::Time maximumDeltaTime;
   float globalVolume;

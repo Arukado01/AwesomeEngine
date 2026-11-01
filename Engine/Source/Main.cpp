@@ -11,13 +11,13 @@ int main() {
 
   while (engine.IsRunning()) {
     engine.ProcessEvent();
+    engine.Update();
 
     if (!engine.HasFocus()) {
       sf::sleep(sf::milliseconds(10));
       continue;
     }
 
-    engine.Update();
     engine.Render();
   }
 }

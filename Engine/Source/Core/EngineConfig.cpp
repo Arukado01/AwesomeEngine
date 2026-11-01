@@ -10,6 +10,7 @@ EngineConfig::EngineConfig() {
   nlohmann::json json = nlohmann::json::parse(file);
   windowTitle = json["windowTitle"];
   windowSize = {json["windowSize"][0], json["windowSize"][1]};
+  frameRateLimit = json.value("frameRateLimit", 120u);
   disableSfmlLogs = json["disableSfmlLogs"];
   maximumDeltaTime = sf::seconds(json["maximumDeltaTime"]);
   globalVolume = json["globalVolume"];

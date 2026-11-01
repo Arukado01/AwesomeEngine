@@ -15,6 +15,7 @@ Engine::Engine() : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
   /**  Configuración inicial de la ventana */
   window_.setIcon(sf::Image("Content/Textures/Icon.png"));
   window_.setMinimumSize(window_.getSize() / 2u); // Mitad del tamaño actual como mínimo
+  window_.setFramerateLimit(gConfig.frameRateLimit); // Evita saturar CPU/GPU con cuadros que la pantalla no puede mostrar
   window_.setKeyRepeatEnabled(false); // Evita repetición de teclas al mantener presionadas
   window_.setMouseCursorVisible(false); // Oculta el cursor del sistema (AwesomeEngine dibuja el suyo)
 
@@ -61,6 +62,9 @@ void Engine::ProcessEvent() {
 void Engine::Update() {
 
   context_.time.Update(); // Actualiza el tiempo con el delta time del frame
+  if (!window_.hasFocus()) { // Mantiene el reloj al día sin avanzar la simulación.
+    return;
+  }
   context_.cursor.Update(context_.time.GetDeltaTime()); // Actualiza el cursor con el delta time del frame
 
   if (!overlay_.IsVisible()) { // Actualizamos la escena solo si el overlay está oculto (con la pausa abierta el juego se congela)
@@ -134,6 +138,9 @@ void Engine::EventSceneChange(const std::string &name) {
 
   currentScene_ = nextScene; // Cambia a la nueva escena e inicializa su estado
   currentScene_->Start();
+  if (!window_.hasFocus() || overlay_.IsVisible()) {
+    currentScene_->OnPause(true);
+  }
 }
 
 /** Evento: reiniciar la escena actual */
@@ -163,7 +170,7 @@ void Engine::EventOverlayPauseToggle() {
   context_.cursor.SetVisible(overlayVisible || cursorWasVisible_); // Con el overlay abierto el cursor siempre se muestra (para navegar la GUI); al cerrarlo se recupera la visibilidad previa a la pausa
   cursorWasVisible_ = cursorVisible; // Recuerda el estado para restaurarlo luego
 
-  currentScene_->OnPause(overlayVisible); // Pausa la escena al abrir el overlay; la reanuda al cerrarlo
+  currentScene_->OnPause(overlayVisible || !window_.hasFocus()); // Mantiene la pausa mientras la ventana no tenga el foco.
   LOG_INFO(overlayVisible ? "Game paused" : "Game resumed");
 }
 

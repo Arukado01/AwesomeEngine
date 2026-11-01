@@ -356,7 +356,8 @@ void Game::UpdatePlayerEffects() {
   auto &slideSound = soundEffects[static_cast<std::size_t>(PlayerSound::Slide)];
   if (player.sliding && player.grounded && !gameOver.active) {
     PlayPlayerSound(PlayerSound::Slide);
-  } else if (slideSound) {
+  } else if (slideSound && slideSound->getStatus() != sf::SoundSource::Status::Stopped) {
+    // SFML espera al hilo de audio en stop(); no repetir esa espera en cada cuadro.
     slideSound->stop();
   }
   if (player.sliding && player.grounded) {
