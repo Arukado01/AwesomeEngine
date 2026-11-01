@@ -34,9 +34,8 @@ namespace MineSweeper {
     void EventMinesSpawn(sf::Vector2i safePosition);
     void EventMinesSpawnSetAdjacents();
     void EventCellRevealAsk();
-    void EventCellReveal(sf::Vector2i position);
     void EventCellRevealAdjacentZeros(sf::Vector2i position);
-    void EventGridReveal();
+    void EventGameFinish();
     void EventResultTextSpawn(bool win);
     void EventFlagToggleAsk();
     void EventFlagToggle(sf::Vector2i position);

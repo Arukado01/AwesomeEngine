@@ -2,7 +2,7 @@
 
 using namespace MineSweeper;
 
-/* Constructor: prepara la grilla y las estadísticas una sola vez, al crear la escena. */
+/* Constructor: prepara la grilla y las estadísticas una vez, al crear la escena. */
 Game::Game(EngineContext &context) : Scene(context),
                                      restartCooldown(RESTART_COOLDOWN_DURATION) {
   InitGrid();
@@ -78,12 +78,11 @@ void Game::StartGrid() {
   }
 }
 
-/* Deja una casilla como nueva: tapada, sin mina, sin número de vecinos y con el color de casilla oculta. */
+/* Deja una casilla como nueva: tapada, sin mina y sin número de vecinos. */
 void Game::StartGridCell(Cell &cell) {
   cell.state = CellState::Hidden;
   cell.mined = false;
   cell.adjacentCount = 0;
-  cell.visual.background.setFillColor(CELL_HIDDEN_COLOR);
 }
 
 /* Inicia las estadísticas de la ronda: primer clic pendiente, banderas en cero y contador con el total de minas. */
@@ -148,7 +147,7 @@ void Game::EventMinesSpawn(sf::Vector2i safePosition) {
     placed++;
   }
 
-  EventMinesSpawnSetAdjacents(); // minas ya colocadas: recién ahora sí se puede calcular, para cada casilla, cuántas vecinas son minas
+  EventMinesSpawnSetAdjacents(); // minas ya colocadas: recién ahora se puede calcular, para cada casilla, cuántas vecinas son minas
 }
 
 /* Recorre el tablero casilla por casilla y deja en cada una el número de minas que la rodean: -1 cuando la casilla ES una mina. */
@@ -184,7 +183,7 @@ void Game::EventMinesSpawnSetAdjacents() {
   }
 }
 
-/* Filtro antes de revelar: la partida debe estar en curso, el cursor debe estar sobre el tablero y el primer clic coloca las minas. */
+/* Revela la casilla bajo el cursor: si esconde una mina se pierde; si no, se expanden los ceros y luego se chequea si se ganó. */
 void Game::EventCellRevealAsk() {
   if (restartCooldown.IsRunning()) {
     return; // el aviso de fin está en pantalla: por ahora no se puede jugar
@@ -203,25 +202,15 @@ void Game::EventCellRevealAsk() {
 
   auto &cell = grid.cells[position.y][position.x];
 
-  if (cell.state == CellState::Hidden) { // solo reaccionan las casillas tapadas: las abiertas o con bandera no hacen nada
-    EventCellReveal(position);
-  }
-}
-
-/* Revela una casilla: si guarda una mina se pierde la partida; si no, muestra su número (y expande si es un cero) y luego chequea si se ganó. */
-void Game::EventCellReveal(sf::Vector2i position) {
-  auto &cell = grid.cells[position.y][position.x];
-
-  if (cell.state == CellState::Revealed || cell.state == CellState::Flagged) {
-    return; // ya está abierta o tiene bandera: no se puede volver a revelar
+  if (cell.state != CellState::Hidden) {
+    return; // solo reaccionan las casillas tapadas: las abiertas o con bandera no hacen nada
   }
 
   cell.state = CellState::Revealed; // la casilla queda abierta
-  cell.visual.background.setFillColor(CELL_REVEALED_COLOR); // y pinta el fondo correspondiente de inmediato
 
   if (cell.mined) {
     LOG_INFO("You Lose!");
-    EventGridReveal();
+    EventGameFinish();
     EventResultTextSpawn(false); // muestra el mensaje de derrota
     return; // derrota inmediata: se corta aquí
   }
@@ -232,7 +221,7 @@ void Game::EventCellReveal(sf::Vector2i position) {
 
   if (IsWin()) {
     LOG_INFO("You Win!");
-    EventGridReveal(); // también muestra las minas que quedaron sin marcar
+    EventGameFinish();
     EventResultTextSpawn(true); // muestra el mensaje de victoria
   }
 }
@@ -248,7 +237,7 @@ void Game::EventCellRevealAdjacentZeros(sf::Vector2i position) {
 
     auto &cell = grid.cells[neighborPosition.y][neighborPosition.x];
 
-    // Solo casillas tapadas y sin mina participan: las ya abiertas quedan fuera y así el proceso nunca se repite.
+    // Solo casillas tapadas y sin mina: las ya abiertas no entran de nuevo y así el proceso no se repite infinito.
     if ((cell.state != CellState::Hidden && cell.state != CellState::Flagged) || cell.mined) {
       continue;
     }
@@ -257,8 +246,7 @@ void Game::EventCellRevealAdjacentZeros(sf::Vector2i position) {
       stats.flagCount--; // la bandera se libera y vuelve a estar disponible
     }
 
-    cell.state = CellState::Revealed; // se marca abierta antes de seguir: así esta misma casilla no vuelve a entrar (evita un ciclo infinito)
-    cell.visual.background.setFillColor(CELL_REVEALED_COLOR);
+    cell.state = CellState::Revealed; // se marca abierta ANTES de seguir: así esta misma casilla no vuelve a entrar (evita un ciclo infinito)
 
     if (cell.adjacentCount == 0) {
       EventCellRevealAdjacentZeros(neighborPosition); // la vecina también es un cero: la cadena continúa con sus propias vecinas
@@ -266,19 +254,9 @@ void Game::EventCellRevealAdjacentZeros(sf::Vector2i position) {
   }
 }
 
-/* Fin de la partida: descubre las minas, marca el estado de fin y arranca el temporizador que reinicia la escena. */
-void Game::EventGridReveal() {
-  for (auto &row : grid.cells) {
-    for (auto &cell : row) {
-      // las minas con bandera deben conservar su estado Flagged: el render las dibuja como círculo con X (mina desactivada)
-      if (cell.mined && cell.state != CellState::Flagged) {
-        cell.state = CellState::Revealed; // solo las minas sin bandera se cambian a abierta
-        cell.visual.background.setFillColor(CELL_REVEALED_COLOR);
-      }
-    }
-  }
-
-  stats.gameOver = true; // con este valor el render sabe cuáles banderas acertaron
+/* Fin de la partida: cambia el estado global y programa el reinicio de la escena. El render se encarga de mostrar las minas. */
+void Game::EventGameFinish() {
+  stats.gameOver = true; // el render reacciona: muestra todas las minas y las banderas acertadas como círculo con X
   restartCooldown.Start(); // al expirar, Update() reinicia la escena y arranca una ronda nueva
 }
 
@@ -321,12 +299,10 @@ void Game::EventFlagToggle(sf::Vector2i position) {
     if (stats.flagCount < STATS_MINE_COUNT) { // límite: no se permiten más banderas que minas
       cell.state = CellState::Flagged;
       stats.flagCount++;
-      cell.visual.background.setFillColor(CELL_REVEALED_COLOR); // cambia el fondo al color "abierta" para que la bandera se distinga
     }
   } else if (cell.state == CellState::Flagged) {
     cell.state = CellState::Hidden;
     stats.flagCount--; // la bandera vuelve a estar disponible
-    cell.visual.background.setFillColor(CELL_HIDDEN_COLOR); // vuelve al color de casilla tapada
   }
 }
 
@@ -380,23 +356,27 @@ void Game::Render() const {
   ctx.renderer.Draw(resultText); // el mensaje de fin se dibuja al final para que nada lo tape
 }
 
-/* Dibuja una casilla según su estado, junto con lo que lleve encima: bandera, mina, número o la X de mina desactivada. */
+/* Dibuja una casilla: color de fondo según su estado, y encima lo que corresponda: bandera, mina, número o la X de "mina desactivada". */
 void Game::RenderCell(const Cell &cell) const {
-  ctx.renderer.Draw(cell.visual.background);
+  // La mina se ve si su casilla está abierta, o si la partida terminó (todas las minas salen a la vista).
+  bool showMine = cell.mined && (cell.state == CellState::Revealed || stats.gameOver);
 
-  if (cell.state == CellState::Flagged) {
-    if (stats.gameOver && cell.mined) {
-      ctx.renderer.Draw(cell.visual.mine); // círculo: la bandera estaba bien puesta y la mina se muestra
-      ctx.renderer.Draw(cell.visual.mineCross); // la X encima confirma que esa mina quedó desactivada
-    } else {
-      ctx.renderer.Draw(cell.visual.flag); // bandera común de una casilla tapada
+  // El fondo se dibuja de una copia: el color se decide aquí y no queda regado por los eventos del juego.
+  sf::RectangleShape background = cell.visual.background;
+  background.setFillColor(showMine || cell.state != CellState::Hidden ? CELL_REVEALED_COLOR : CELL_HIDDEN_COLOR);
+
+  ctx.renderer.Draw(background);
+
+  if (showMine) {
+    ctx.renderer.Draw(cell.visual.mine); // el círculo de la mina
+
+    if (cell.state == CellState::Flagged) {
+      ctx.renderer.Draw(cell.visual.mineCross); // además tiene bandera: estaba bien puesta → X encima = mina desactivada
     }
-  } else if (cell.state == CellState::Revealed) {
-    if (cell.mined) {
-      ctx.renderer.Draw(cell.visual.mine); // mina descubierta
-    } else if (cell.adjacentCount > 0) {
-      ctx.renderer.Draw(cell.visual.adjacentCountText); // número de minas vecinas: los ceros no dibujan nada más
-    }
+  } else if (cell.state == CellState::Flagged) {
+    ctx.renderer.Draw(cell.visual.flag); // bandera común de una casilla tapada
+  } else if (cell.state == CellState::Revealed && cell.adjacentCount > 0) {
+    ctx.renderer.Draw(cell.visual.adjacentCountText); // número de minas vecinas; las casillas abiertas con 0 quedan limpias
   }
-  // casilla tapada: solo se ve el fondo
+  // sin nada extra: una tapada solo muestra el fondo y una abierta sin minas alrededor tampoco agrega dibujo
 }
