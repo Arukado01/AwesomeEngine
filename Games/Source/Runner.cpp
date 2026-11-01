@@ -9,11 +9,23 @@
 using namespace Runner;
 
 Game::Game(EngineContext &context)
-    : Scene(context), player(LoadTexture(context, PLAYER_TEXTURE_FILENAME)) {
+    : Scene(context), player(LoadTexture(context, PLAYER_TEXTURE_FILENAME)), music(context.resources.FetchMusic(MUSIC_FILENAME)) {
   dustParticles.reserve(MAX_DUST_PARTICLES);
   footstepPulses.reserve(MAX_FOOTSTEP_PULSES);
   InitEnvironment();
   InitGameOver();
+  if (music) {
+    music->setLooping(true);
+    music->setVolume(MUSIC_VOLUME);
+  }
+  for (std::size_t index = 0; index < soundEffects.size(); ++index) {
+    const auto &config = PLAYER_SOUNDS[index];
+    if (auto *buffer = ctx.resources.FetchSound(config.filename); buffer && buffer->getSampleCount() > 0) {
+      auto &sound = soundEffects[index].emplace(*buffer);
+      sound.setVolume(config.volume);
+      sound.setLooping(config.looping);
+    }
+  }
 }
 
 sf::Texture &Game::LoadTexture(EngineContext &context, const std::string &filename, bool repeated) {
@@ -67,6 +79,7 @@ void Game::InitGameOver() {
 }
 
 void Game::Start() {
+  StopPlayerSounds();
   ctx.cursor.SetVisible(false);
 
   BindInputs();
@@ -89,6 +102,11 @@ void Game::Start() {
   StartPlayer();
 
   EventObstacleSpawn();
+  if (music) {
+    music->stop();
+    music->setVolume(MUSIC_VOLUME);
+    music->play();
+  }
 }
 
 void Game::BindInputs() {
@@ -113,7 +131,7 @@ void Game::StartPlayer() {
   player.shape.setPosition({gConfig.windowSize.x / 6, positionY});
 
   player.previousBounds = player.shape.getGlobalBounds();
-  UpdatePlayerAnimation();
+  UpdatePlayerAnimation(false);
 }
 
 void Game::StartStats() {
@@ -138,6 +156,7 @@ void Game::Update() {
   if (ctx.input.Pressed(Jump) && player.grounded && !player.sliding) {
     player.velocity.y = PLAYER_JUMP_VELOCITY;
     player.grounded = false;
+    PlayPlayerSound(PlayerSound::Jump);
   }
 
   UpdatePlayer();
@@ -229,7 +248,7 @@ void Game::UpdatePlayerGrounded() {
   }
 }
 
-void Game::UpdatePlayerAnimation() {
+void Game::UpdatePlayerAnimation(bool emitSound) {
   auto animation = PlayerAnimation::Run;
   if (player.sliding) {
     animation = PlayerAnimation::Slide;
@@ -253,12 +272,12 @@ void Game::UpdatePlayerAnimation() {
     const float playbackSpeed = std::min(clip.framesPerSecond * stats.speed / STATS_SPEED_START, PLAYER_ANIMATION_MAX_FPS);
     const float nextTime = player.animationTime + ctx.time.GetDeltaTime() * playbackSpeed;
     if (player.animationFrame < 0) {
-      EventPlayerFootstep();
+      EventPlayerFootstep(PLAYER_FOOTSTEP_FRAMES.front(), emitSound);
     }
     // Emite una pisada únicamente al cruzar un cuadro de contacto, incluso al cerrar el ciclo.
     for (int step = static_cast<int>(player.animationTime) + 1; step <= static_cast<int>(nextTime); ++step) {
       if (std::ranges::find(PLAYER_FOOTSTEP_FRAMES, step % clip.frameCount) != PLAYER_FOOTSTEP_FRAMES.end()) {
-        EventPlayerFootstep();
+        EventPlayerFootstep(step % clip.frameCount, emitSound);
       }
     }
     player.animationTime = std::fmod(nextTime, static_cast<float>(clip.frameCount));
@@ -334,6 +353,12 @@ void Game::UpdateEnvironment(float deltaTime) {
 }
 
 void Game::UpdatePlayerEffects() {
+  auto &slideSound = soundEffects[static_cast<std::size_t>(PlayerSound::Slide)];
+  if (player.sliding && player.grounded && !gameOver.active) {
+    PlayPlayerSound(PlayerSound::Slide);
+  } else if (slideSound) {
+    slideSound->stop();
+  }
   if (player.sliding && player.grounded) {
     player.slideDustTime += ctx.time.GetDeltaTime();
     const auto bounds = player.shape.getGlobalBounds();
@@ -401,11 +426,33 @@ void Game::EventGameOver() {
   gameOver.distanceText.setString(std::format("Distancia: {}", distance));
   gameOver.distanceText.setOrigin(gameOver.distanceText.getLocalBounds().getCenter());
   gameOver.active = true;
+  StopPlayerSounds();
+  if (music) {
+    music->setVolume(MUSIC_GAME_OVER_VOLUME);
+  }
   gameOver.restartCooldown.Restart();
   UpdateGameOver();
 }
 
 void Game::OnPause(bool paused) {
+  if (music) {
+    if (paused) {
+      music->pause();
+    } else if (music->getStatus() == sf::SoundSource::Status::Paused) {
+      // Reanuda únicamente una pista pausada: play() sobre una activa la reiniciaría.
+      music->play();
+    }
+  }
+  for (auto &sound : soundEffects) {
+    if (!sound) {
+      continue;
+    }
+    if (paused) {
+      sound->pause();
+    } else if (sound->getStatus() == sf::SoundSource::Status::Paused) {
+      sound->play();
+    }
+  }
   if (!gameOver.active || gameOver.restartRequested) {
     return;
   }
@@ -416,7 +463,36 @@ void Game::OnPause(bool paused) {
   }
 }
 
-void Game::EventPlayerFootstep() {
+void Game::OnCleanup() {
+  StopPlayerSounds();
+  if (music) {
+    music->stop();
+  }
+}
+
+void Game::PlayPlayerSound(PlayerSound sound) {
+  if (gameOver.active) {
+    return;
+  }
+  auto &effect = soundEffects[static_cast<std::size_t>(sound)];
+  // Un bucle activo conserva su cursor para que el arrastre no se reinicie en cada cuadro.
+  if (effect && (!effect->isLooping() || effect->getStatus() != sf::SoundSource::Status::Playing)) {
+    effect->play();
+  }
+}
+
+void Game::StopPlayerSounds() {
+  for (auto &sound : soundEffects) {
+    if (sound) {
+      sound->stop();
+    }
+  }
+}
+
+void Game::EventPlayerFootstep(int contactFrame, bool emitSound) {
+  if (emitSound) {
+    PlayPlayerSound(contactFrame == PLAYER_FOOTSTEP_FRAMES.front() ? PlayerSound::FootstepLeft : PlayerSound::FootstepRight);
+  }
   const auto bounds = player.shape.getGlobalBounds();
   const sf::Vector2f contact(player.shape.getPosition().x + PLAYER_FOOTSTEP_OFFSET,
                              bounds.position.y + bounds.size.y);

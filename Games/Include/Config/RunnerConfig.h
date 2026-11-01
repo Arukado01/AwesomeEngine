@@ -89,6 +89,17 @@ namespace Runner {
   const float STATS_SPEED_MAX = 800;
   const int STATS_DISTANCE_SCALE = 100;
 
+  const std::string MUSIC_FILENAME = "RunnerCyberpunk.ogg";
+  const float MUSIC_VOLUME = 32;
+  const float MUSIC_GAME_OVER_VOLUME = 18;
+
+  const std::array<SoundEffectConfig, static_cast<std::size_t>(PlayerSound::Count)> PLAYER_SOUNDS{{
+      {"RunnerFootstepLeft.wav", 9, false},
+      {"RunnerFootstepRight.wav", 9, false},
+      {"RunnerSlide.wav", 20, true},
+      {"RunnerJump.wav", 20, false},
+  }};
+
   const float GAME_OVER_RESTART_DELAY = 2.5f;
   const std::string GAME_OVER_TITLE = "GAME OVER";
   const unsigned int GAME_OVER_TITLE_SIZE = 52;

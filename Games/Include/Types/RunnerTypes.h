@@ -22,6 +22,20 @@ namespace Runner {
     Recover
   };
 
+  enum class PlayerSound {
+    FootstepLeft,
+    FootstepRight,
+    Slide,
+    Jump,
+    Count
+  };
+
+  struct SoundEffectConfig {
+    const char *filename;
+    float volume;
+    bool looping;
+  };
+
   struct PlayerAnimationClip {
     int firstFrame;
     int frameCount;

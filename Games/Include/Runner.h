@@ -2,7 +2,10 @@
 
 #include "Config/RunnerConfig.h"
 
+#include <SFML/Audio/Music.hpp>
+#include <SFML/Audio/Sound.hpp>
 #include <deque>
+#include <optional>
 #include <vector>
 
 namespace Runner {
@@ -12,6 +15,8 @@ namespace Runner {
     std::deque<Obstacle> obstacles;
     Stats stats;
     GameOverState gameOver;
+    std::optional<sf::Music> music;
+    std::array<std::optional<sf::Sound>, static_cast<std::size_t>(PlayerSound::Count)> soundEffects;
     sf::RectangleShape ground;
     std::array<BackgroundLayer, BACKGROUND_LAYER_COUNT> backgroundLayers;
     BackgroundLayer foregroundCity;
@@ -28,6 +33,7 @@ namespace Runner {
     void Update() override;
     void Render() const override;
     void OnPause(bool paused) override;
+    void OnCleanup() override;
 
   private:
     void InitEnvironment();
@@ -43,7 +49,7 @@ namespace Runner {
     bool CanPlayerStand() const;
     void SetSlidePhase(SlidePhase phase);
     void UpdatePlayerGrounded();
-    void UpdatePlayerAnimation();
+    void UpdatePlayerAnimation(bool emitSound = true);
     void UpdatePlayerEffects();
     void UpdateEffects();
     void UpdateEnvironment(float deltaTime);
@@ -52,7 +58,9 @@ namespace Runner {
     int GetDistance() const;
     void UpdateGameOver();
 
-    void EventPlayerFootstep();
+    void EventPlayerFootstep(int contactFrame, bool emitSound = true);
+    void PlayPlayerSound(PlayerSound sound);
+    void StopPlayerSounds();
     void EmitDust(sf::Vector2f position, int count, bool sliding);
     void EventObstacleSpawn();
     void EventGameOver();
