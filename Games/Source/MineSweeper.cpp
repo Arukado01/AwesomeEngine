@@ -2,67 +2,74 @@
 
 using namespace MineSweeper;
 
+/* Constructor: prepara la grilla y las estadísticas una sola vez, al crear la escena. */
 Game::Game(EngineContext &context) : Scene(context),
                                      restartCooldown(RESTART_COOLDOWN_DURATION) {
   InitGrid();
   InitStats();
 }
 
+/* Calcula dónde nace el tablero y crea las 8×8 casillas en su posición. */
 void Game::InitGrid() {
-  sf::Vector2f origin = GetGridOrigin();
+  sf::Vector2f origin = GetGridOrigin(); // esquina superior izquierda del tablero (Arriba, izquierda)
   sf::Vector2f size(CELL_SIZE, CELL_SIZE);
 
   for (int i = 0; i < GRID_HEIGHT; i++) {
     for (int j = 0; j < GRID_WIDTH; j++) {
       auto &cell = grid.cells[i][j];
 
+      // (columna, fila) por tamaño de casilla = desplazamiento en píxeles desde esa esquina.
       sf::Vector2f offset(j * CELL_SIZE, i * CELL_SIZE);
 
-      InitGridCell(cell, {origin + offset + size / 2.f, size});
+      InitGridCell(cell, {origin + offset + size / 2.f, size}); // se pasa el CENTRO de la casilla, no su esquina
     }
   }
 }
 
+/* Configura los dibujos de una casilla: fondo, mina, X de "mina desactivada", bandera y número, todos centrados en ella. */
 void Game::InitGridCell(Cell &cell, sf::FloatRect bounds) {
   cell.visual.background.setOutlineColor(CELL_OUTLINE_COLOR);
-  cell.visual.background.setOutlineThickness(-1);
+  cell.visual.background.setOutlineThickness(-1); // grosor negativo: el contorno se dibuja hacia adentro y no se superpone con la casilla vecina
   cell.visual.background.setSize(bounds.size);
-  cell.visual.background.setOrigin(cell.visual.background.getGeometricCenter());
-  cell.visual.background.setPosition(bounds.position);
+  cell.visual.background.setOrigin(cell.visual.background.getGeometricCenter()); // el punto de anclaje es su centro geométrico
+  cell.visual.background.setPosition(bounds.position); // bounds.position es el centro de la casilla
 
   cell.visual.mine.setFillColor(CELL_MINE_COLOR);
-  cell.visual.mine.setRadius(CELL_SIZE / 4);
+  cell.visual.mine.setRadius(CELL_SIZE / 4); // un cuarto del tamaño de la casilla: la mina queda pequeña
   cell.visual.mine.setOrigin(cell.visual.mine.getGeometricCenter());
-  cell.visual.mine.setPosition(bounds.position);
+  cell.visual.mine.setPosition(bounds.position); // anclada al centro, igual que el fondo
 
-  cell.visual.mineCross.setString("X");
-  cell.visual.mineCross.setCharacterSize(CELL_MINE_CROSS_SIZE);
+  cell.visual.mineCross.setString("X"); // la X solo se dibuja al terminar la partida, si la bandera acertó
+  cell.visual.mineCross.setCharacterSize(CELL_MINE_CROSS_SIZE); // más grande que el círculo de la mina, para que se note encima
   cell.visual.mineCross.setFillColor(CELL_MINE_CROSS_COLOR);
   cell.visual.mineCross.setOrigin(cell.visual.mineCross.getLocalBounds().getCenter());
-  cell.visual.mineCross.setPosition(bounds.position);
+  cell.visual.mineCross.setPosition(bounds.position); // misma coordenada: queda centrada sobre el círculo
 
   cell.visual.flag.setFillColor(CELL_FLAG_COLOR);
   cell.visual.flag.setRadius(CELL_SIZE / 4);
-  cell.visual.flag.setPointCount(3);
+  cell.visual.flag.setPointCount(3); // un círculo de 3 puntos se dibuja como triángulo: así se hace la bandera
   cell.visual.flag.setOrigin(cell.visual.flag.getGeometricCenter());
   cell.visual.flag.setPosition(bounds.position);
 
   cell.visual.adjacentCountText.setFillColor(CELL_TEXT_COLOR);
-  cell.visual.adjacentCountText.setCharacterSize((int)CELL_SIZE - 10);
-  cell.visual.adjacentCountText.setPosition(bounds.position);
+  cell.visual.adjacentCountText.setCharacterSize((int)CELL_SIZE - 10); // casi tan alto como la casilla
+  cell.visual.adjacentCountText.setPosition(bounds.position); // todavía sin texto: se centra más tarde, cuando se conozca el número
 }
 
+/* Coloca el contador de minas en la esquina superior izquierda de la ventana. */
 void Game::InitStats() {
   stats.mineCountText.setPosition({10, 10});
 }
 
+/* Se ejecuta al entrar a la escena y en cada reinicio: prepara una ronda nueva. */
 void Game::Start() {
   StartGrid();
   StartStats();
 
-  restartCooldown.Reset();
+  restartCooldown.Reset(); // el temporizador de reinicio arranca a cero y detenido
 }
 
+/* Resetea todas las casillas del tablero al estado inicial. */
 void Game::StartGrid() {
   for (auto &row : grid.cells) {
     for (auto &cell : row) {
@@ -71,6 +78,7 @@ void Game::StartGrid() {
   }
 }
 
+/* Deja una casilla como nueva: tapada, sin mina, sin número de vecinos y con el color de casilla oculta. */
 void Game::StartGridCell(Cell &cell) {
   cell.state = CellState::Hidden;
   cell.mined = false;
@@ -78,20 +86,23 @@ void Game::StartGridCell(Cell &cell) {
   cell.visual.background.setFillColor(CELL_HIDDEN_COLOR);
 }
 
+/* Inicia las estadísticas de la ronda: primer clic pendiente, banderas en cero y contador con el total de minas. */
 void Game::StartStats() {
   stats.firstClick = true;
   stats.flagCount = 0;
-  stats.gameOver = false;
+  stats.gameOver = false; // la partida todavía no se ganó ni se perdió
   stats.mineCountText.setString("Mines: " + std::to_string(STATS_MINE_COUNT));
-  resultText.setString(""); // el aviso de partida anterior muere aquí
+  resultText.setString(""); // limpia el mensaje de victoria o derrota de la ronda anterior
 }
 
+/* Envía cada evento al HandleEvent correspondiente y, al final, actualiza el contador de minas restantes. */
 void Game::OnEvent(const sf::Event &event) {
   event.visit([this](const auto &type) { this->HandleEvent(type); });
 
-  stats.mineCountText.setString("Mines: " + std::to_string(STATS_MINE_COUNT - stats.flagCount));
+  stats.mineCountText.setString("Mines: " + std::to_string(STATS_MINE_COUNT - stats.flagCount)); // el contador pudo cambiar con el gesto (por ejemplo, al poner una bandera)
 }
 
+/* Mouse: el clic izquierdo revela casillas y el derecho pone o quita banderas. */
 void Game::HandleEvent(const sf::Event::MouseButtonPressed &mouse) {
   if (mouse.button == sf::Mouse::Button::Left) {
     EventCellRevealAsk();
@@ -100,8 +111,9 @@ void Game::HandleEvent(const sf::Event::MouseButtonPressed &mouse) {
   }
 }
 
+/* Mando: el botón Sur (A) revela casillas y el Oeste (X) pone o quita banderas. */
 void Game::HandleEvent(const sf::Event::JoystickButtonPressed &joystick) {
-  if (auto button = Input::HardwareToLogical(joystick.button, joystick.joystickId)) {
+  if (auto button = Input::HardwareToLogical(joystick.button, joystick.joystickId)) { // convierte el botón físico al botón lógico, porque cada fabricante los numera distinto
     if (*button == GamepadButton::South) {
       EventCellRevealAsk();
     } else if (*button == GamepadButton::West) {
@@ -110,12 +122,14 @@ void Game::HandleEvent(const sf::Event::JoystickButtonPressed &joystick) {
   }
 }
 
+/* Se ejecuta en cada frame: si el aviso de fin terminó su tiempo, reinicia la escena. */
 void Game::Update() {
   if (restartCooldown.IsOver()) {
-    ctx.scenes.RestartCurrentScene();
+    ctx.scenes.RestartCurrentScene(); // así arranca una ronda nueva usando el mismo tablero
   }
 }
 
+/* Coloca las minas en casillas al azar, evitando la casilla del primer clic, y luego calcula los números de vecinos. */
 void Game::EventMinesSpawn(sf::Vector2i safePosition) {
   int placed = 0;
 
@@ -125,6 +139,7 @@ void Game::EventMinesSpawn(sf::Vector2i safePosition) {
 
     auto &cell = grid.cells[position.y][position.x];
 
+    // Reintenta mientras la casilla elegida sea la del clic inicial o ya tenga una mina.
     if ((position == safePosition) || cell.mined) {
       continue;
     }
@@ -133,140 +148,158 @@ void Game::EventMinesSpawn(sf::Vector2i safePosition) {
     placed++;
   }
 
-  EventMinesSpawnSetAdjacents();
+  EventMinesSpawnSetAdjacents(); // minas ya colocadas: recién ahora sí se puede calcular, para cada casilla, cuántas vecinas son minas
 }
 
+/* Recorre el tablero casilla por casilla y deja en cada una el número de minas que la rodean: -1 cuando la casilla ES una mina. */
 void Game::EventMinesSpawnSetAdjacents() {
+  // i = fila actual, j = columna actual: una casilla distinta por vuelta del doble loop
   for (int i = 0; i < GRID_HEIGHT; i++) {
     for (int j = 0; j < GRID_WIDTH; j++) {
       auto &cell = grid.cells[i][j];
 
+      // adjacentCount se calcula en dos casos:
+      // 1) La casilla ES una mina → -1: valor especial imposible de obtener contando vecinas reales,
+      //    con él el resto del juego sabe que ahí hay una mina (por ejemplo, para no dibujarle número).
+      // 2) La casilla NO es una mina → count_if recorre sus 8 vecinas y cuenta cuántas tienen mina:
+      //    a) GetNeighborOffsets() entrega los 8 desplazamientos hacia las casillas vecinas (arriba, abajo, diagonales, etc.).
+      //    b) vecinoX/vecinoY = posición real de la vecina: la casilla actual (j, i) más el desplazamiento offset.
+      //    c) el lambda devuelve true si esa vecina existe (está dentro del tablero) y además tiene una mina.
+      //    d) count_if devuelve cuántas veces dio true: cuántas de las 8 vecinas son minas (un número entre 0 y 8).
+      //    El (int) convierte el retorno de count_if (entero grande) al tipo del campo adjacentCount.
       cell.adjacentCount = cell.mined ? -1 : (int)std::ranges::count_if(GetNeighborOffsets(), [&](sf::Vector2i offset) {
         int neighborX = j + offset.x;
         int neighborY = i + offset.y;
-        return neighborX >= 0 && neighborX < GRID_WIDTH &&
-               neighborY >= 0 && neighborY < GRID_HEIGHT &&
-               grid.cells[neighborY][neighborX].mined;
+        return neighborX >= 0 && neighborX < GRID_WIDTH && // la vecina existe si su columna entra entre 0 y GRID_WIDTH - 1
+               neighborY >= 0 && neighborY < GRID_HEIGHT && // y su fila entre 0 y GRID_HEIGHT - 1: si algo de esto falla, la vecina no existe
+               grid.cells[neighborY][neighborX].mined; // y encima tiene una mina: recién entonces esa vecina suma al número
       });
 
-      if (cell.adjacentCount > 0) {
+      if (cell.adjacentCount > 0) { // número de 1 a 8: sí se dibuja; los ceros (0) y las minas (-1) no muestran número
         cell.visual.adjacentCountText.setString(std::to_string(cell.adjacentCount));
         sf::Vector2f center = cell.visual.adjacentCountText.getLocalBounds().getCenter();
-        cell.visual.adjacentCountText.setOrigin(center);
+        cell.visual.adjacentCountText.setOrigin(center); // el dígito se centra con su ancho real, que recién ahora se conoce
       }
     }
   }
 }
 
+/* Filtro antes de revelar: la partida debe estar en curso, el cursor debe estar sobre el tablero y el primer clic coloca las minas. */
 void Game::EventCellRevealAsk() {
   if (restartCooldown.IsRunning()) {
-    return;
+    return; // el aviso de fin está en pantalla: por ahora no se puede jugar
   }
 
   sf::Vector2i position = WorldToCell(ctx.cursor.GetPosition());
 
   if (!IsCellPositionValid(position)) {
-    return;
+    return; // el cursor está fuera del tablero: no hay casilla que revelar
   }
 
   if (stats.firstClick) {
-    EventMinesSpawn(position);
-    stats.firstClick = false;
+    EventMinesSpawn(position); // primer clic de la ronda: aquí se colocan las minas, nunca sobre esa casilla
+    stats.firstClick = false; // de esta forma la siembra ocurre una sola vez por ronda
   }
 
   auto &cell = grid.cells[position.y][position.x];
 
-  if (cell.state == CellState::Hidden) {
+  if (cell.state == CellState::Hidden) { // solo reaccionan las casillas tapadas: las abiertas o con bandera no hacen nada
     EventCellReveal(position);
   }
 }
 
+/* Revela una casilla: si guarda una mina se pierde la partida; si no, muestra su número (y expande si es un cero) y luego chequea si se ganó. */
 void Game::EventCellReveal(sf::Vector2i position) {
   auto &cell = grid.cells[position.y][position.x];
 
   if (cell.state == CellState::Revealed || cell.state == CellState::Flagged) {
-    return;
+    return; // ya está abierta o tiene bandera: no se puede volver a revelar
   }
 
-  cell.state = CellState::Revealed;
-  cell.visual.background.setFillColor(CELL_REVEALED_COLOR);
+  cell.state = CellState::Revealed; // la casilla queda abierta
+  cell.visual.background.setFillColor(CELL_REVEALED_COLOR); // y pinta el fondo correspondiente de inmediato
 
   if (cell.mined) {
     LOG_INFO("You Lose!");
     EventGridReveal();
-    EventResultTextSpawn(false);
-    return;
+    EventResultTextSpawn(false); // muestra el mensaje de derrota
+    return; // derrota inmediata: se corta aquí
   }
 
   if (cell.adjacentCount == 0) {
-    EventCellRevealAdjacentZeros(position);
+    EventCellRevealAdjacentZeros(position); // sin minas alrededor: se revelan en cadena las casillas vecinas
   }
 
   if (IsWin()) {
     LOG_INFO("You Win!");
-    EventGridReveal();
-    EventResultTextSpawn(true);
+    EventGridReveal(); // también muestra las minas que quedaron sin marcar
+    EventResultTextSpawn(true); // muestra el mensaje de victoria
   }
 }
 
+/* Revela las 8 casillas vecinas de una casilla sin minas alrededor; cuando alguna vecina también es un cero, repite el proceso (recursión). */
 void Game::EventCellRevealAdjacentZeros(sf::Vector2i position) {
   for (sf::Vector2i offset : GetNeighborOffsets()) {
     sf::Vector2i neighborPosition = position + offset;
 
     if (!IsCellPositionValid(neighborPosition)) {
-      continue;
+      continue; // la vecina cae fuera del tablero: se salta
     }
 
     auto &cell = grid.cells[neighborPosition.y][neighborPosition.x];
 
+    // Solo casillas tapadas y sin mina participan: las ya abiertas quedan fuera y así el proceso nunca se repite.
     if ((cell.state != CellState::Hidden && cell.state != CellState::Flagged) || cell.mined) {
       continue;
     }
 
     if (cell.state == CellState::Flagged) {
-      stats.flagCount--;
+      stats.flagCount--; // la bandera se libera y vuelve a estar disponible
     }
 
-    cell.state = CellState::Revealed;
+    cell.state = CellState::Revealed; // se marca abierta antes de seguir: así esta misma casilla no vuelve a entrar (evita un ciclo infinito)
     cell.visual.background.setFillColor(CELL_REVEALED_COLOR);
 
     if (cell.adjacentCount == 0) {
-      EventCellRevealAdjacentZeros(neighborPosition);
+      EventCellRevealAdjacentZeros(neighborPosition); // la vecina también es un cero: la cadena continúa con sus propias vecinas
     }
   }
 }
 
+/* Fin de la partida: descubre las minas, marca el estado de fin y arranca el temporizador que reinicia la escena. */
 void Game::EventGridReveal() {
   for (auto &row : grid.cells) {
     for (auto &cell : row) {
-      // las minas marcadas conservan su Flagged: mueren al render como círculo + X (desactivada)
+      // las minas con bandera deben conservar su estado Flagged: el render las dibuja como círculo con X (mina desactivada)
       if (cell.mined && cell.state != CellState::Flagged) {
-        cell.state = CellState::Revealed;
+        cell.state = CellState::Revealed; // solo las minas sin bandera se cambian a abierta
         cell.visual.background.setFillColor(CELL_REVEALED_COLOR);
       }
     }
   }
 
-  stats.gameOver = true;
-  restartCooldown.Start();
+  stats.gameOver = true; // con este valor el render sabe cuáles banderas acertaron
+  restartCooldown.Start(); // al expirar, Update() reinicia la escena y arranca una ronda nueva
 }
 
+/* Muestra en el centro de la ventana el mensaje de fin: "¡GANASTE!" (verde) o "¡PERDISTE!" (rojo), con contorno para leerse sobre el tablero. */
 void Game::EventResultTextSpawn(bool win) {
-  // std::wstring: SFML lo lleva a Unicode de verdad; un std::string con '¡' UTF-8 se pinta como "Â¡"
+  // std::wstring evita que el "¡" aparezca como "Â¡" (problema de codificación con std::string)
   std::wstring message = win ? L"¡GANASTE!" : L"¡PERDISTE!";
 
   resultText.setString(message);
   resultText.setCharacterSize(RESULT_TEXT_SIZE);
-  resultText.setFillColor(win ? RESULT_WIN_COLOR : RESULT_LOSE_COLOR);
+  resultText.setFillColor(win ? RESULT_WIN_COLOR : RESULT_LOSE_COLOR); // verde para la victoria, rojo para la derrota
   resultText.setOutlineColor(RESULT_OUTLINE_COLOR);
   resultText.setOutlineThickness(RESULT_TEXT_OUTLINE_THICKNESS);
-  resultText.setOrigin(resultText.getLocalBounds().getCenter()); // centrado tras conocer su tamaño real
+  resultText.setOrigin(resultText.getLocalBounds().getCenter()); // centrado después de conocer el tamaño real del texto
   resultText.setPosition(gConfig.windowSize / 2.f); // centro de la ventana
 }
 
+/* Filtro antes de tocar bandera: la partida debe estar en curso y el cursor debe apuntar a una casilla real. */
 void Game::EventFlagToggleAsk() {
   if (restartCooldown.IsRunning()) {
-    return;
+    return; // con el aviso de fin en pantalla no se pueden marcar casillas
   }
 
   sf::Vector2i position = WorldToCell(ctx.cursor.GetPosition());
@@ -276,45 +309,52 @@ void Game::EventFlagToggleAsk() {
   }
 }
 
+/* Pone o quita una bandera en una casilla tapada, sin superar el límite de una bandera por mina. */
 void Game::EventFlagToggle(sf::Vector2i position) {
   auto &cell = grid.cells[position.y][position.x];
 
   if (cell.state == CellState::Revealed) {
-    return;
+    return; // las casillas ya abiertas no pueden llevar bandera
   }
 
   if (cell.state == CellState::Hidden) {
-    if (stats.flagCount < STATS_MINE_COUNT) {
+    if (stats.flagCount < STATS_MINE_COUNT) { // límite: no se permiten más banderas que minas
       cell.state = CellState::Flagged;
       stats.flagCount++;
-      cell.visual.background.setFillColor(CELL_REVEALED_COLOR);
+      cell.visual.background.setFillColor(CELL_REVEALED_COLOR); // cambia el fondo al color "abierta" para que la bandera se distinga
     }
   } else if (cell.state == CellState::Flagged) {
     cell.state = CellState::Hidden;
-    stats.flagCount--;
-    cell.visual.background.setFillColor(CELL_HIDDEN_COLOR);
+    stats.flagCount--; // la bandera vuelve a estar disponible
+    cell.visual.background.setFillColor(CELL_HIDDEN_COLOR); // vuelve al color de casilla tapada
   }
 }
 
+/* Convierte píxeles a coordenadas de casilla (columna, fila): resta el origen del tablero y divide por el tamaño. */
 sf::Vector2i Game::WorldToCell(sf::Vector2f position) const {
-  sf::Vector2f offset = position - GetGridOrigin();
-  return {int(std::floor(offset.x / CELL_SIZE)), int(std::floor(offset.y / CELL_SIZE))};
+  sf::Vector2f offset = position - GetGridOrigin(); // posición en píxeles desde la esquina del tablero
+
+  return {int(std::floor(offset.x / CELL_SIZE)), int(std::floor(offset.y / CELL_SIZE))}; // el floor redondea hacia abajo y evita errores con valores negativos
 }
 
+/* Esquina superior izquierda del tablero: el espacio libre de la ventana se reparte en dos mitades. */
 sf::Vector2f Game::GetGridOrigin() const {
   return (gConfig.windowSize - sf::Vector2f(GRID_WIDTH, GRID_HEIGHT) * CELL_SIZE) / 2.f;
 }
 
+/* Devuelve los 8 desplazamientos hacia las casillas vecinas, diagonales incluidas. */
 std::array<sf::Vector2i, 8> Game::GetNeighborOffsets() const {
   return std::to_array<sf::Vector2i>(
       {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}});
 }
 
+/* Indica si unas coordenadas (columna, fila) están dentro del tablero. */
 bool Game::IsCellPositionValid(sf::Vector2i position) const {
   return position.x >= 0 && position.x < GRID_WIDTH &&
          position.y >= 0 && position.y < GRID_HEIGHT;
 }
 
+/* Se ganó cuando la cantidad de casillas abiertas sin mina equivale al total de casillas libres de mina. */
 bool Game::IsWin() const {
   int revealed = 0;
 
@@ -327,6 +367,7 @@ bool Game::IsWin() const {
   return revealed == (GRID_WIDTH * GRID_HEIGHT - STATS_MINE_COUNT);
 }
 
+/* Dibuja todas las casillas, el contador de minas y, si ya terminó la partida, el mensaje de fin por encima de todo. */
 void Game::Render() const {
   for (const auto &row : grid.cells) {
     for (const auto &cell : row) {
@@ -334,26 +375,28 @@ void Game::Render() const {
     }
   }
 
-  ctx.renderer.Draw(stats.mineCountText);
+  ctx.renderer.Draw(stats.mineCountText); // el contador vive fuera de la grilla
 
-  ctx.renderer.Draw(resultText); // el anuncio, la capa más alta de todas
+  ctx.renderer.Draw(resultText); // el mensaje de fin se dibuja al final para que nada lo tape
 }
 
+/* Dibuja una casilla según su estado, junto con lo que lleve encima: bandera, mina, número o la X de mina desactivada. */
 void Game::RenderCell(const Cell &cell) const {
   ctx.renderer.Draw(cell.visual.background);
 
   if (cell.state == CellState::Flagged) {
     if (stats.gameOver && cell.mined) {
-      ctx.renderer.Draw(cell.visual.mine);    // círculo: la mina marcada acertadamente...
-      ctx.renderer.Draw(cell.visual.mineCross); // ...y una X más grande encima: mina desactivada
+      ctx.renderer.Draw(cell.visual.mine); // círculo: la bandera estaba bien puesta y la mina se muestra
+      ctx.renderer.Draw(cell.visual.mineCross); // la X encima confirma que esa mina quedó desactivada
     } else {
-      ctx.renderer.Draw(cell.visual.flag);
+      ctx.renderer.Draw(cell.visual.flag); // bandera común de una casilla tapada
     }
   } else if (cell.state == CellState::Revealed) {
     if (cell.mined) {
-      ctx.renderer.Draw(cell.visual.mine);
+      ctx.renderer.Draw(cell.visual.mine); // mina descubierta
     } else if (cell.adjacentCount > 0) {
-      ctx.renderer.Draw(cell.visual.adjacentCountText);
+      ctx.renderer.Draw(cell.visual.adjacentCountText); // número de minas vecinas: los ceros no dibujan nada más
     }
   }
+  // casilla tapada: solo se ve el fondo
 }
