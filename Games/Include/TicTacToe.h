@@ -2,11 +2,18 @@
 
 #include "Types/TicTacToeTypes.h"
 
+#include <optional>
 #include <span>
 
 namespace TicTacToe {
   class Game : public Scene {
   private:
+    std::optional<GameMode> mode; // vacío = pantalla de selección de modo activa
+    ModeButton modeButtonAI;
+    ModeButton modeButtonPvP;
+    sf::Text menuTitle{GetDefaultFont()};
+    sf::Text turnText{GetDefaultFont()};
+
     Grid grid;
     bool isXTurn;
     Cooldown aiCooldown;
@@ -25,7 +32,11 @@ namespace TicTacToe {
   private:
     void InitGrid();
     void InitGridCell(Cell &cell, sf::Vector2f position);
+    void InitMenu();
+    void InitMenuButton(ModeButton &button, sf::Vector2f position, sf::Vector2f size);
+    void FitText(sf::Text &text, float maxWidth, float size);
 
+    void StartMenu();
     void StartGrid();
     void StartGridCell(Cell &cell);
     void StartTurn();
@@ -33,6 +44,11 @@ namespace TicTacToe {
     void StartWinningLine();
     void StartResultText();
 
+    void UpdateMenu();
+
+    void EventMenuSelect();
+    void EventModeSelect(GameMode mode);
+    void EventTurnTextSpawn();
     void EventPlayTurn();
     void EventPlayAITurn();
     void EventCellPlace(sf::Vector2i position);
@@ -40,6 +56,7 @@ namespace TicTacToe {
     void EventWinningLineSpawn(char symbol);
     void EventResultTextSpawn(char symbol);
 
+    std::optional<GameMode> FindModeHovered() const;
     sf::Vector2i GetCellPositionCursor() const;
     sf::Vector2f GetCellCenter(const sf::Vector2i &position) const;
     sf::Vector2i GetCellPositionAI();

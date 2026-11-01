@@ -3,6 +3,13 @@
 #include "Config/TicTacToeConfig.h"
 
 namespace TicTacToe {
+  enum class GameMode { PvAI, PvP }; // PvAI: humano (X) contra la máquina (O) · PvP: dos humanos al mismo tablero
+
+  struct ModeButton {
+    sf::RectangleShape shape;
+    sf::Text label{GetDefaultFont()};
+  };
+
   struct Cell {
     sf::RectangleShape shape;
     char symbol;
