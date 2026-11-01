@@ -5,6 +5,7 @@
 #include "MemoryCard.h"
 #include "TicTacToe.h"
 #include "MineSweeper.h"
+#include "Runner.h"
 
 namespace SceneFactory {
   Scenes CreateScenes(EngineContext &context) {
@@ -15,6 +16,7 @@ namespace SceneFactory {
     scenes.emplace("MemoryCard", std::make_unique<MemoryCard::Game>(context));
     scenes.emplace("TicTacToe", std::make_unique<TicTacToe::Game>(context));
     scenes.emplace("MineSweeper", std::make_unique<MineSweeper::Game>(context));
+    scenes.emplace("Runner", std::make_unique<Runner::Game>(context));
 
     return scenes;
   }
