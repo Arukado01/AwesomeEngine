@@ -16,6 +16,7 @@ private:
 
   Overlay overlay_;
   bool cursorWasVisible_;
+  bool scenePaused_ = false;
 
 public:
   Engine();
@@ -33,6 +34,8 @@ private:
   void EventWindowResized(sf::Vector2u size);
   void EventWindowFocusLost();
   void EventWindowFocusGained();
+  void SetScenePaused(bool paused);
+  void SyncScenePause();
   void EventGamepadConnected(int id);
   void EventGamepadDisconnected(int id);
   void EventWindowScreenshot() const;

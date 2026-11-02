@@ -56,6 +56,7 @@ void Engine::ProcessEvent() {
   if (const auto selection = overlay_.FetchSelection()) { // Si el usuario seleccionó una opción del overlay de pausa, la consume y la procesa (FetchSelection devuelve vacío tras leerla)
     EventOverlaySelect(*selection);
   }
+  SyncScenePause();
 }
 
 /** Actualiza la lógica del juego una vez por frame */
@@ -99,14 +100,28 @@ void Engine::EventWindowResized(sf::Vector2u size) {
 
 /** Evento: la ventana perdió el foco (la escena se pausa) */
 void Engine::EventWindowFocusLost() {
-  currentScene_->OnPause(true);
+  SetScenePaused(true);
   LOG_INFO("Window focus lost");
 }
 
 /** Evento: la ventana recuperó el foco (la escena se reanuda, salvo que el overlay esté abierto, en cuyo caso sigue pausada) */
 void Engine::EventWindowFocusGained() {
-  currentScene_->OnPause(overlay_.IsVisible());
+  SyncScenePause();
   LOG_INFO("Window focus gained");
+}
+
+/* Pausa o reanuda la escena activa solo cuando su estado cambia. */
+void Engine::SetScenePaused(bool paused) {
+  if (currentScene_ && scenePaused_ != paused) {
+    scenePaused_ = paused;
+    // Cada escena se encarga de pausar o reanudar sus propios sonidos y temporizadores.
+    currentScene_->OnPause(paused);
+  }
+}
+
+/* Mantiene la escena pausada si el menú está abierto o la ventana no tiene el foco. */
+void Engine::SyncScenePause() {
+  SetScenePaused(overlay_.IsVisible() || !window_.hasFocus());
 }
 
 /** Evento: se conectó un gamepad */
@@ -138,9 +153,8 @@ void Engine::EventSceneChange(const std::string &name) {
 
   currentScene_ = nextScene; // Cambia a la nueva escena e inicializa su estado
   currentScene_->Start();
-  if (!window_.hasFocus() || overlay_.IsVisible()) {
-    currentScene_->OnPause(true);
-  }
+  scenePaused_ = false;
+  SyncScenePause();
 }
 
 /** Evento: reiniciar la escena actual */
@@ -170,7 +184,7 @@ void Engine::EventOverlayPauseToggle() {
   context_.cursor.SetVisible(overlayVisible || cursorWasVisible_); // Con el overlay abierto el cursor siempre se muestra (para navegar la GUI); al cerrarlo se recupera la visibilidad previa a la pausa
   cursorWasVisible_ = cursorVisible; // Recuerda el estado para restaurarlo luego
 
-  currentScene_->OnPause(overlayVisible || !window_.hasFocus()); // Mantiene la pausa mientras la ventana no tenga el foco.
+  SyncScenePause(); // Mantiene la pausa mientras la ventana no tenga el foco.
   LOG_INFO(overlayVisible ? "Game paused" : "Game resumed");
 }
 
