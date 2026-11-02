@@ -12,7 +12,6 @@ using namespace Runner;
 Game::Game(EngineContext &context)
     : Scene(context), player(LoadTexture(context, PLAYER_TEXTURE_FILENAME)), music(context.resources.FetchMusic(MUSIC_FILENAME)) {
   // el sprite pide su textura desde nacer: si Runner.png no existe, esta línea explota y avisamos en el init
-  dustParticles.reserve(MAX_DUST_PARTICLES); // memoria ya pedida en el arranque: los arreglos no crecen (ni tiran) en plena carrera
   footstepPulses.reserve(MAX_FOOTSTEP_PULSES);
   InitEnvironment(); // crea fondos, plataforma y hoja de sprites de los obstáculos
   InitGameOver(); // deja lista la pantalla del fin
@@ -92,7 +91,7 @@ void Game::Start() {
   BindInputs();
 
   obstacles.clear(); // sin los obstáculos de la ronda anterior
-  dustParticles.clear();
+  ctx.particles.Clear();
   footstepPulses.clear();
   gameOver.active = false; // ronda viva
   gameOver.restartRequested = false;
@@ -339,12 +338,7 @@ void Game::UpdatePlayerAnimation(bool emitSound) { // false solo al iniciar la e
 void Game::UpdateEffects() {
   const float delta = ctx.time.GetDeltaTime();
   player.stepImpact = std::max(0.f, player.stepImpact - delta / FOOTSTEP_DURATION); // el aplastamiento baja 0→0.12 s (lineal)
-  for (auto &particle : dustParticles) {
-    particle.remainingLife -= delta; // envejece
-    particle.velocity.y += DUST_GRAVITY * delta; // caída suave (la gravedad del mundo real sería infinita ␣ comparación)
-    particle.position += sf::Vector2f(particle.velocity.x - stats.speed * DUST_SCROLL_FACTOR, particle.velocity.y) * delta;
-  } // viento × 0.65: las motas retroceden "con el mundo" (0.65 = más lento que el suelo: parecen ser AGUA Layers)
-  std::erase_if(dustParticles, [](const DustParticle &particle) { return particle.remainingLife <= 0; }); // las muertas se van
+  ctx.particles.Update(delta, {-stats.speed * DUST_SCROLL_FACTOR, 0}); // El polvo se desplaza con el mundo.
   for (auto &pulse : footstepPulses) {
     pulse.remainingLife -= delta;
     pulse.position.x -= stats.speed * delta; // la marca corre al MISMO ritmo del suelo: queda pegada al piso
@@ -495,6 +489,7 @@ void Game::OnPause(bool paused) {
 
 /* Se va la escena para siempre: apagar controles de audio para no dejar voces colgadas en el motor. */
 void Game::OnCleanup() {
+  ctx.particles.Clear();
   StopPlayerSounds();
   if (music) {
     music->stop();
@@ -542,14 +537,16 @@ void Game::EmitDust(sf::Vector2f position, int count, bool sliding) {
   const float speed = sliding ? SLIDE_DUST_SPEED : FOOTSTEP_DUST_SPEED; // velocidad lateral máxima: 100 vs 45
   const float lift = sliding ? SLIDE_DUST_LIFT : FOOTSTEP_DUST_LIFT; // impulso hacia arriba: 48 vs 25
   const int maxSize = sliding ? SLIDE_DUST_MAX_SIZE : FOOTSTEP_DUST_MAX_SIZE; // tamaño máximo: 4 vs 2px
-  for (int index = 0; index < count && dustParticles.size() < MAX_DUST_PARTICLES; ++index) {
+  for (int index = 0; index < count && ctx.particles.Count() < MAX_DUST_PARTICLES; ++index) {
     const float lifetime = ctx.random.Float(DUST_MIN_LIFETIME, DUST_MAX_LIFETIME); // entre 0.22 y 0.48 s de vida
     // pos = el punto de contacto con jitter antira; vel = hacia atrás (−speed..−speed/3) y algo de tirón arriba...
-    dustParticles.push_back({position + sf::Vector2f(ctx.random.Float(-DUST_SPAWN_RADIUS, DUST_SPAWN_RADIUS), -DUST_SPAWN_HEIGHT),
-                             {ctx.random.Float(-speed, -speed / 3), ctx.random.Float(-lift, -DUST_MIN_LIFT)},
-                             lifetime, // vida restante
-                             lifetime, // vida TOTAL (para calcular cuánta opacidad queda)
-                             static_cast<float>(ctx.random.Int(1, maxSize))}); // tamaño: entre 1 y max
+    ctx.particles.Emit({position + sf::Vector2f(ctx.random.Float(-DUST_SPAWN_RADIUS, DUST_SPAWN_RADIUS), -DUST_SPAWN_HEIGHT),
+                        {ctx.random.Float(-speed, -speed / 3), ctx.random.Float(-lift, -DUST_MIN_LIFT)},
+                        {0, DUST_GRAVITY},
+                        lifetime, // vida restante
+                        lifetime, // vida TOTAL (para calcular cuánta opacidad queda)
+                        static_cast<float>(ctx.random.Int(1, maxSize)),
+                        sf::Color(DUST_COLOR.r, DUST_COLOR.g, DUST_COLOR.b, static_cast<std::uint8_t>(DUST_OPACITY))});
   } // todas nacen un pelito ARRIBA del punto de contacto, con dispersión lateral
 }
 
@@ -676,10 +673,7 @@ void Game::RenderEffects() const {
     pixel.setPosition({std::round(position.x), std::round(position.y)}); // redondeado: partículas nítidas
     ctx.renderer.Draw(pixel);
   };
-  for (const auto &particle : dustParticles) {
-    const float opacity = particle.remainingLife / particle.lifetime; // 1 al nacer → 0 al morir
-    drawPixel(particle.position, {particle.size, particle.size}, DUST_COLOR, DUST_OPACITY * opacity); // cuadrita
-  }
+  ctx.particles.Render(ctx.renderer);
   for (const auto &pulse : footstepPulses) {
     const float opacity = pulse.remainingLife / FOOTSTEP_DURATION;
     const float width = std::lerp(FOOTSTEP_PULSE_WIDTH, FOOTSTEP_PULSE_MIN_WIDTH, opacity); // nace chico (4px) y CRECE hasta 18 mientras muere

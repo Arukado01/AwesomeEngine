@@ -149,6 +149,7 @@ void Engine::EventSceneChange(const std::string &name) {
     currentScene_->OnCleanup();
   }
 
+  context_.particles.Clear(); // La escena nueva no hereda las partículas de la anterior.
   context_.input.Clear(); // Reinicia el estado de entrada para que la nueva escena empiece limpia
 
   currentScene_ = nextScene; // Cambia a la nueva escena e inicializa su estado

@@ -23,7 +23,6 @@ namespace Runner {
     sf::RectangleShape platformFront;
     float platformOffset = 0;
     sf::Texture *obstacleTexture = nullptr;
-    std::vector<DustParticle> dustParticles;
     std::vector<FootstepPulse> footstepPulses;
 
   public:

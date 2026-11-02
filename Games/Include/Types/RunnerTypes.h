@@ -76,14 +76,6 @@ namespace Runner {
     float offset = 0;
   };
 
-  struct DustParticle {
-    sf::Vector2f position;
-    sf::Vector2f velocity;
-    float remainingLife;
-    float lifetime;
-    float size;
-  };
-
   struct FootstepPulse {
     sf::Vector2f position;
     float remainingLife;

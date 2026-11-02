@@ -7,6 +7,7 @@
 #include "Managers/CursorManager.h"
 #include "Managers/GuiManager.h"
 #include "Managers/InputManager.h"
+#include "Managers/ParticleManager.h"
 #include "Managers/RandomManager.h"
 #include "Managers/RenderManager.h"
 #include "Managers/ResourceManager.h"
@@ -23,6 +24,7 @@ struct EngineContext {
   ResourceManager resources;
   AudioManager audio;
   InputManager input;
+  ParticleManager particles;
   RenderManager renderer;
   ScreenshotManager screenshot;
   CursorManager cursor;
