@@ -12,7 +12,6 @@ using namespace Runner;
 Game::Game(EngineContext &context)
     : Scene(context), player(LoadTexture(context, PLAYER_TEXTURE_FILENAME)), music(context.resources.FetchMusic(MUSIC_FILENAME)) {
   // el sprite pide su textura desde nacer: si Runner.png no existe, esta línea explota y avisamos en el init
-  footstepPulses.reserve(MAX_FOOTSTEP_PULSES);
   InitEnvironment(); // crea fondos, plataforma y hoja de sprites de los obstáculos
   InitGameOver(); // deja lista la pantalla del fin
   if (music) { // la pista de música puede no existir: si falta, la partida sigue en silencio (no tumba el juego)
@@ -92,7 +91,6 @@ void Game::Start() {
 
   obstacles.clear(); // sin los obstáculos de la ronda anterior
   ctx.particles.Clear();
-  footstepPulses.clear();
   gameOver.active = false; // ronda viva
   gameOver.restartRequested = false;
   gameOver.restartCooldown.Reset(); // el contador del fin: a cero y detenido
@@ -161,7 +159,7 @@ void Game::Update() {
     return; // todo lo demás está CONGELADO: la pantalla cuentagotas se ve quieta detrás
   }
 
-  UpdateEffects(); // polvo y marcas vivas avanzan SIEMPRE, juegues o no
+  UpdateEffects(); // Actualiza el polvo y el impacto de las pisadas.
   UpdateEnvironment(ctx.time.GetDeltaTime()); // el parallax también avanza solo: el mundo corre aunque el jugador esté en el aire
   if (ctx.input.Pressed(Jump) && player.grounded && !player.sliding) { // saltar: solo con contactos y sin plancha activa
     player.velocity.y = PLAYER_JUMP_VELOCITY; // impulso: −600 (negativo = hacia arriba, porque la pantalla crece hacia abajo)
@@ -334,16 +332,11 @@ void Game::UpdatePlayerAnimation(bool emitSound) { // false solo al iniciar la e
                              std::round(bounds.position.y + bounds.size.y)}); // PIES de la caja: el sprite nace pegado a sus pies
 }
 
-/* Física del polvo y las marcas de pisada: viven, caen, el mundo las arrastra y las muertas se descartan. */
+/* Actualiza el impacto de las pisadas y el movimiento del polvo. */
 void Game::UpdateEffects() {
   const float delta = ctx.time.GetDeltaTime();
   player.stepImpact = std::max(0.f, player.stepImpact - delta / FOOTSTEP_DURATION); // el aplastamiento baja 0→0.12 s (lineal)
   ctx.particles.Update(delta, {-stats.speed * DUST_SCROLL_FACTOR, 0}); // El polvo se desplaza con el mundo.
-  for (auto &pulse : footstepPulses) {
-    pulse.remainingLife -= delta;
-    pulse.position.x -= stats.speed * delta; // la marca corre al MISMO ritmo del suelo: queda pegada al piso
-  }
-  std::erase_if(footstepPulses, [](const FootstepPulse &pulse) { return pulse.remainingLife <= 0; });
 }
 
 /* El parallax: cada plano avanza su offset según su velocidad relativa y recalcula la "ventana" de recorte de la textura repetida. */
@@ -517,7 +510,7 @@ void Game::StopPlayerSounds() {
   }
 }
 
-/* Un paso: suena el pie que toca (izquierdo o derecho según el fotito), imprime el aplastamiento y deja marca y polvo. */
+/* Un paso reproduce el sonido del pie, comprime el personaje y levanta polvo. */
 void Game::EventPlayerFootstep(int contactFrame, bool emitSound) {
   if (emitSound) {
     PlayPlayerSound(contactFrame == PLAYER_FOOTSTEP_FRAMES.front() ? PlayerSound::FootstepLeft : PlayerSound::FootstepRight);
@@ -526,9 +519,6 @@ void Game::EventPlayerFootstep(int contactFrame, bool emitSound) {
   const sf::Vector2f contact(player.shape.getPosition().x + PLAYER_FOOTSTEP_OFFSET, // el punto exacto donde EL PIE sostiene
                              bounds.position.y + bounds.size.y);
   player.stepImpact = 1; // aplastamiento a máxima fuerza (decae linealmente en UpdateEffects)
-  if (footstepPulses.size() < MAX_FOOTSTEP_PULSES) { // tope de marcas: las viejas mueren antes
-    footstepPulses.push_back({contact, FOOTSTEP_DURATION}); // la marca vivirá 0.12 s
-  }
   EmitDust(contact, FOOTSTEP_DUST_COUNT, false); // polvo de pisada normal: chiquito y liviano
 }
 
@@ -614,7 +604,7 @@ void Game::Render() const {
     RenderObstacle(obstacle);
   }
 
-  RenderEffects(); // el polvo y las marcas quedan BAJO el jugador, como debe ser
+  ctx.particles.Render(ctx.renderer); // Dibuja el polvo detrás del personaje.
   ctx.renderer.Draw(player.sprite);
 
   ctx.renderer.Draw(stats.distanceText); // HUD último: nunca lo tapa nada de la pista
@@ -661,24 +651,6 @@ void Game::RenderGameOver() const {
   ctx.renderer.Draw(gameOver.title); // GAME OVER
   ctx.renderer.Draw(gameOver.distanceText); // Distancia: N
   ctx.renderer.Draw(gameOver.restartText); // Reinicio en X.X s
-}
-
-/* Polvo y marcas de pisada: cuadritas cuyo brillo baja con la edad (más viejas = más tenues). */
-void Game::RenderEffects() const {
-  sf::RectangleShape pixel; // la plantilla reutilizada para cada cuadrita
-  const auto drawPixel = [&](sf::Vector2f position, sf::Vector2f size, sf::Color color, float opacity) {
-    color.a = static_cast<std::uint8_t>(opacity); // aplica transparencia (canal alpha)
-    pixel.setFillColor(color);
-    pixel.setSize(size);
-    pixel.setPosition({std::round(position.x), std::round(position.y)}); // redondeado: partículas nítidas
-    ctx.renderer.Draw(pixel);
-  };
-  ctx.particles.Render(ctx.renderer);
-  for (const auto &pulse : footstepPulses) {
-    const float opacity = pulse.remainingLife / FOOTSTEP_DURATION;
-    const float width = std::lerp(FOOTSTEP_PULSE_WIDTH, FOOTSTEP_PULSE_MIN_WIDTH, opacity); // nace chico (4px) y CRECE hasta 18 mientras muere
-    drawPixel({pulse.position.x - width / 2, pulse.position.y - 1}, {width, 1}, FOOTSTEP_COLOR, FOOTSTEP_OPACITY * opacity);
-  } // 1px de alto: una línea fina por el suelo
 }
 
 /* ¿Cuándo chocan por primera vez DENTRO de este frame (t: 0..1), y el contacto fue de arriba (aterrizar) o de lado (crash)? */

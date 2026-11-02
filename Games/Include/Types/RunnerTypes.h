@@ -76,11 +76,6 @@ namespace Runner {
     float offset = 0;
   };
 
-  struct FootstepPulse {
-    sf::Vector2f position;
-    float remainingLife;
-  };
-
   struct Stats {
     float speed = 0;
     float obstacleNextX = 0;

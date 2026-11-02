@@ -36,14 +36,11 @@ namespace Runner {
   const float PLAYER_FOOTSTEP_OFFSET = 10;
   const float FOOTSTEP_DURATION = 0.12f;
   const float FOOTSTEP_COMPRESSION = 0.04f;
-  const float FOOTSTEP_PULSE_WIDTH = 18;
-  const float FOOTSTEP_PULSE_MIN_WIDTH = 4;
   const float SLIDE_DUST_INTERVAL = 0.045f;
   const int FOOTSTEP_DUST_COUNT = 3;
   const int SLIDE_DUST_COUNT = 3;
   const int SLIDE_DUST_BURST_COUNT = 10;
   const std::size_t MAX_DUST_PARTICLES = 128;
-  const std::size_t MAX_FOOTSTEP_PULSES = 8;
   const float DUST_MIN_LIFETIME = 0.22f;
   const float DUST_MAX_LIFETIME = 0.48f;
   const float DUST_GRAVITY = 45;
@@ -58,9 +55,7 @@ namespace Runner {
   const int FOOTSTEP_DUST_MAX_SIZE = 2;
   const int SLIDE_DUST_MAX_SIZE = 4;
   const float DUST_OPACITY = 180;
-  const float FOOTSTEP_OPACITY = 180;
   const sf::Color DUST_COLOR(180, 164, 140);
-  const sf::Color FOOTSTEP_COLOR(66, 221, 245);
 
   const std::size_t BACKGROUND_LAYER_COUNT = 2;
   const std::array<std::string, BACKGROUND_LAYER_COUNT> BACKGROUND_TEXTURE_FILENAMES{{"RunnerSkyline.png", "RunnerCity.png"}};

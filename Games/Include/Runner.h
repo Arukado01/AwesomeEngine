@@ -6,7 +6,6 @@
 #include <SFML/Audio/Sound.hpp>
 #include <deque>
 #include <optional>
-#include <vector>
 
 namespace Runner {
   class Game : public Scene {
@@ -23,7 +22,6 @@ namespace Runner {
     sf::RectangleShape platformFront;
     float platformOffset = 0;
     sf::Texture *obstacleTexture = nullptr;
-    std::vector<FootstepPulse> footstepPulses;
 
   public:
     explicit Game(EngineContext &);
@@ -70,7 +68,6 @@ namespace Runner {
     static std::optional<ObstacleHit> SweepObstacle(const sf::FloatRect &previousPlayer, const sf::FloatRect &currentPlayer,
                                                     const sf::FloatRect &previousObstacle, const sf::FloatRect &currentObstacle);
     static bool OverlapsHorizontally(const sf::FloatRect &playerBounds, const sf::FloatRect &obstacleBounds);
-    void RenderEffects() const;
     void RenderGameOver() const;
     void RenderEnvironment() const;
     void RenderObstacle(const Obstacle &obstacle) const;
