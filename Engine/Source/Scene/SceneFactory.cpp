@@ -6,6 +6,7 @@
 #include "TicTacToe.h"
 #include "MineSweeper.h"
 #include "Runner.h"
+#include "Tetris.h"
 
 namespace SceneFactory {
   Scenes CreateScenes(EngineContext &context) {
@@ -17,6 +18,7 @@ namespace SceneFactory {
     scenes.emplace("TicTacToe", std::make_unique<TicTacToe::Game>(context));
     scenes.emplace("MineSweeper", std::make_unique<MineSweeper::Game>(context));
     scenes.emplace("Runner", std::make_unique<Runner::Game>(context));
+    scenes.emplace("Tetris", std::make_unique<Tetris::Game>(context));
 
     return scenes;
   }
