@@ -16,7 +16,6 @@ namespace MemoryCard {
     void OnEvent(const sf::Event &);
     void Update();
     void Render() const;
-    void OnPause(bool);
 
   private:
     void InitCardPair();

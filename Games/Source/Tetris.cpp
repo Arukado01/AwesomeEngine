@@ -6,6 +6,9 @@ Game::Game(EngineContext &context) : Scene(context),
                                      actionCooldown(ACTION_COOLDOWN_DURATION),
                                      fallCooldown(PIECE_FALL_COOLDOWN_DURATION),
                                      softDropCooldown(SOFT_DROP_COOLDOWN_DURATION) {
+  actionCooldown.Bind(ctx.time);
+  fallCooldown.Bind(ctx.time);
+  softDropCooldown.Bind(ctx.time);
   InitStats();
 }
 
@@ -274,17 +277,5 @@ void Game::RenderPiece(const Piece &piece, sf::Vector2f origin, bool world) cons
     shape.setPosition(origin + sf::Vector2f(block.x * BLOCK_SIZE, block.y * BLOCK_SIZE));
 
     ctx.renderer.Draw(shape);
-  }
-}
-
-void Game::OnPause(bool paused) {
-  if (paused) {
-    actionCooldown.Stop();
-    fallCooldown.Stop();
-    softDropCooldown.Stop();
-  } else {
-    actionCooldown.Start();
-    fallCooldown.Start();
-    softDropCooldown.Start();
   }
 }

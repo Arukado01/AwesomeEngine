@@ -3,6 +3,8 @@
 using namespace Clicker;
 
 Game::Game(EngineContext &context) : Scene(context) {
+  target.teleportCooldown.Bind(ctx.time);
+  stats.finalCooldown.Bind(ctx.time);
   InitTarget();
   InitStats();
 }
@@ -141,14 +143,4 @@ void Game::Render() const {
   ctx.renderer.Draw(stats.scoreText);
   ctx.renderer.Draw(stats.finalCooldownText);
   ctx.renderer.Draw(stats.bestTimeText);
-}
-
-void Game::OnPause(bool paused) {
-  if (paused) {
-    target.teleportCooldown.Stop();
-    stats.finalCooldown.Stop();
-  } else {
-    target.teleportCooldown.Start();
-    stats.finalCooldown.Start();
-  }
 }

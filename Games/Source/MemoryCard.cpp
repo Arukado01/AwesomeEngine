@@ -4,6 +4,7 @@ using namespace MemoryCard;
 
 /* Constructor: inicializa la escena y prepara el temporizador del par visible. */
 Game::Game(EngineContext &context) : Scene(context) {
+  cardPair.visibleCooldown.Bind(ctx.time);
   InitCardPair();
 }
 
@@ -169,14 +170,5 @@ bool Game::IsCardPairSelected() const {
 void Game::Render() const {
   for (const auto &card : cards) {
     ctx.renderer.Draw(card.shape);
-  }
-}
-
-/* Pausa/reanuda el cooldown del par para que no expire mientras la escena está pausada. */
-void Game::OnPause(bool paused) {
-  if (paused) {
-    cardPair.visibleCooldown.Stop();
-  } else {
-    cardPair.visibleCooldown.Start();
   }
 }

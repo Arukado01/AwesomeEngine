@@ -5,6 +5,7 @@ using namespace MineSweeper;
 /* Constructor: prepara la grilla y las estadísticas una vez, al crear la escena. */
 Game::Game(EngineContext &context) : Scene(context),
                                      restartCooldown(RESTART_COOLDOWN_DURATION) {
+  restartCooldown.Bind(ctx.time);
   InitGrid();
   InitStats();
 }

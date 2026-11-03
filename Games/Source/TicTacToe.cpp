@@ -8,6 +8,8 @@ using namespace TicTacToe;
 Game::Game(EngineContext &context) : Scene(context),
                                      aiCooldown(AI_TURN_COOLDOWN_DURATION),
                                      restartCooldown(RESTART_COOLDOWN_DURATION) {
+  aiCooldown.Bind(ctx.time);
+  restartCooldown.Bind(ctx.time);
   InitGrid();
   InitMenu();
 }

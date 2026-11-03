@@ -4,6 +4,8 @@
 
 #include "Managers/AudioManager.h"
 #include "Managers/ClipboardManager.h"
+#include "Managers/CollisionManager.h"
+#include "Managers/AnimationManager.h"
 #include "Managers/CursorManager.h"
 #include "Managers/GuiManager.h"
 #include "Managers/InputManager.h"
@@ -24,6 +26,8 @@ struct EngineContext {
   ResourceManager resources;
   AudioManager audio;
   InputManager input;
+  AnimationManager animations;
+  CollisionManager collisions;
   ParticleManager particles;
   RenderManager renderer;
   ScreenshotManager screenshot;

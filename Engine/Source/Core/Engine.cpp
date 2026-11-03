@@ -112,9 +112,10 @@ void Engine::EventWindowFocusGained() {
 
 /* Pausa o reanuda la escena activa solo cuando su estado cambia. */
 void Engine::SetScenePaused(bool paused) {
+  context_.time.SetPaused(paused);
   if (currentScene_ && scenePaused_ != paused) {
     scenePaused_ = paused;
-    // Cada escena se encarga de pausar o reanudar sus propios sonidos y temporizadores.
+    // Cada escena pausa o reanuda sus propios sonidos.
     currentScene_->OnPause(paused);
   }
 }
@@ -150,9 +151,11 @@ void Engine::EventSceneChange(const std::string &name) {
   }
 
   context_.particles.Clear(); // La escena nueva no hereda las partículas de la anterior.
+  context_.animations.Clear(); // Invalida las animaciones de la escena anterior.
   context_.input.Clear(); // Reinicia el estado de entrada para que la nueva escena empiece limpia
 
   currentScene_ = nextScene; // Cambia a la nueva escena e inicializa su estado
+  context_.time.SetPaused(overlay_.IsVisible() || !window_.hasFocus());
   currentScene_->Start();
   scenePaused_ = false;
   SyncScenePause();
