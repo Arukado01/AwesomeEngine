@@ -1,6 +1,7 @@
 #include "Managers/ParticleManager.h"
 
 #include "Managers/RenderManager.h"
+#include "Managers/RandomManager.h"
 
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <algorithm>
@@ -16,6 +17,30 @@ void ParticleManager::Emit(Particle particle) {
   if (particle.lifetime > 0 && particle.remainingLife > 0 && particles_.size() < maximumParticles_) {
     particles_.push_back(particle);
   }
+}
+
+/* Genera varias partículas a partir de rangos reutilizables y devuelve cuántas se crearon. */
+std::size_t ParticleManager::EmitBurst(sf::Vector2f position, std::size_t count, const ParticleEmitterConfig &config, RandomManager &random) {
+  if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
+      !std::isfinite(config.lifetimeMin) || !std::isfinite(config.lifetimeMax) ||
+      !std::isfinite(config.positionMin.x) || !std::isfinite(config.positionMin.y) ||
+      !std::isfinite(config.positionMax.x) || !std::isfinite(config.positionMax.y) ||
+      !std::isfinite(config.velocityMin.x) || !std::isfinite(config.velocityMin.y) ||
+      !std::isfinite(config.velocityMax.x) || !std::isfinite(config.velocityMax.y) ||
+      !std::isfinite(config.acceleration.x) || !std::isfinite(config.acceleration.y) ||
+      config.lifetimeMin <= 0 || config.lifetimeMin > config.lifetimeMax || config.sizeMin <= 0 || config.sizeMin > config.sizeMax ||
+      config.positionMin.x > config.positionMax.x || config.positionMin.y > config.positionMax.y ||
+      config.velocityMin.x > config.velocityMax.x || config.velocityMin.y > config.velocityMax.y) return 0;
+  const auto available = maximumParticles_ - particles_.size();
+  const auto created = std::min(count, available);
+  const auto value = [&](float min, float max) { return min == max ? min : random.Float(min, max); };
+  for (std::size_t i = 0; i < created; ++i) {
+    const float life = value(config.lifetimeMin, config.lifetimeMax);
+    const sf::Vector2f offset{value(config.positionMin.x, config.positionMax.x), value(config.positionMin.y, config.positionMax.y)};
+    const sf::Vector2f velocity{value(config.velocityMin.x, config.velocityMax.x), value(config.velocityMin.y, config.velocityMax.y)};
+    Emit({position + offset, velocity, config.acceleration, life, life, static_cast<float>(random.Int(config.sizeMin, config.sizeMax)), config.color});
+  }
+  return created;
 }
 
 /* Mueve las partículas, aplica su aceleración y retira las que ya terminaron. */
