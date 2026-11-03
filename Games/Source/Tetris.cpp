@@ -5,18 +5,46 @@ using namespace Tetris;
 Game::Game(EngineContext &context) : Scene(context),
                                      actionCooldown(ACTION_COOLDOWN_DURATION),
                                      fallCooldown(PIECE_FALL_COOLDOWN_DURATION),
-                                     softDropCooldown(SOFT_DROP_COOLDOWN_DURATION) {
+                                     softDropCooldown(SOFT_DROP_COOLDOWN_DURATION),
+                                     gameOverCooldown(GAME_OVER_DELAY),
+                                     audioGroup(context.audio.CreateGroup()) {
   actionCooldown.Bind(ctx.time);
   fallCooldown.Bind(ctx.time);
   softDropCooldown.Bind(ctx.time);
+  gameOverCooldown.Bind(ctx.time);
   InitStats();
+
+  // Textos de Game Over
+  gameOverBackdrop.setSize(gConfig.windowSize);
+  gameOverBackdrop.setFillColor(GAME_OVER_BACKDROP_COLOR);
+  gameOverTitle.setString("GAME OVER");
+  gameOverTitle.setCharacterSize(48);
+  gameOverTitle.setFillColor(GAME_OVER_TITLE_COLOR);
+  gameOverTitle.setOrigin(gameOverTitle.getLocalBounds().getCenter());
+  gameOverTitle.setPosition({gConfig.windowSize.x / 2.f, gConfig.windowSize.y / 2.f - 35.f});
+  gameOverScore.setCharacterSize(28);
+  gameOverScore.setFillColor(SCORE_COLOR);
+  gameOverScore.setPosition({gConfig.windowSize.x / 2.f, gConfig.windowSize.y / 2.f + 25.f});
+
+  if (auto track = ctx.resources.FetchMusic(MUSIC_FILENAME)) {
+    music = audioGroup.AddMusic(std::move(*track), MUSIC_VOLUME, true);
+  }
+  lineClearSound = audioGroup.AddSound(ctx.resources.AcquireSound(LINE_CLEAR_SOUND_FILENAME), LINE_CLEAR_SOUND_VOLUME);
 }
 
 void Game::InitStats() {
   stats.scoreText.setPosition({10, 10});
+  stats.scoreText.setCharacterSize(20);
+  stats.scoreText.setFillColor(SCORE_COLOR);
+  stats.highScoreText.setPosition({10, 40});
+  stats.highScoreText.setCharacterSize(20);
+  stats.highScoreText.setFillColor(SCORE_COLOR);
 }
 
 void Game::Start() {
+  audioGroup.StopAll();
+  gameOverActive = false;
+  gameOverCooldown.Reset();
   ctx.cursor.SetVisible(false);
 
   BindInputs();
@@ -30,6 +58,20 @@ void Game::Start() {
   actionCooldown.Restart();
   fallCooldown.Restart();
   softDropCooldown.Restart();
+
+  if (music) {
+    audioGroup.Play(*music);
+  }
+}
+
+/* Pausa o reanuda el audio cuando el juego pierde o recupera el foco. */
+void Game::OnPause(bool paused) {
+  audioGroup.SetPaused(paused);
+}
+
+/* Detiene los sonidos al cambiar de escena. */
+void Game::OnCleanup() {
+  audioGroup.StopAll();
 }
 
 void Game::BindInputs() {
@@ -61,9 +103,16 @@ void Game::StartNextPiece() {
 void Game::StartStats() {
   stats.score = 0;
   stats.scoreText.setString("Score: 0");
+  // El récord se conserva entre partidas y se recupera al iniciar el juego.
+  stats.highScore = ctx.save.Get<int>(STATS_HIGH_SCORE_KEY, 0);
+  stats.highScoreText.setString("High Score: " + std::to_string(stats.highScore));
 }
 
 void Game::OnEvent(const sf::Event &event) {
+  // No permite mover ni dejar caer piezas durante la pantalla de derrota.
+  if (gameOverActive) {
+    return;
+  }
   if (auto key = event.getIf<sf::Event::KeyPressed>()) {
     if (key->scancode == sf::Keyboard::Scan::Space) {
       EventPieceDropHard();
@@ -78,6 +127,13 @@ void Game::OnEvent(const sf::Event &event) {
 }
 
 void Game::Update() {
+  if (gameOverActive) {
+    // El reloj del juego se detiene si la ventana pierde el foco o se pausa.
+    if (gameOverCooldown.IsOver()) {
+      ctx.scenes.RestartCurrentScene();
+    }
+    return;
+  }
   if (ctx.input.Pressed(Rotate) && actionCooldown.IsOver()) {
     EventPieceRotate();
     actionCooldown.Restart();
@@ -159,7 +215,11 @@ void Game::EventPieceMerge() {
 
   if (!IsPieceValid(current)) {
     LOG_INFO("You Lose!");
-    ctx.scenes.RestartCurrentScene();
+    // Conserva la puntuación final en pantalla antes de reiniciar la escena.
+    gameOverScore.setString("Score: " + std::to_string(stats.score));
+    gameOverScore.setOrigin(gameOverScore.getLocalBounds().getCenter());
+    gameOverActive = true;
+    gameOverCooldown.Restart();
   }
 }
 
@@ -181,6 +241,16 @@ void Game::EventLinesClear() {
     board = newBoard;
     stats.score += cleared * STATS_SCORE_PER_LINE;
     stats.scoreText.setString("Score: " + std::to_string(stats.score));
+    // Actualiza el récord en cuanto la puntuación actual lo supera.
+    if (stats.score > stats.highScore) {
+      stats.highScore = stats.score;
+      stats.highScoreText.setString("High Score: " + std::to_string(stats.highScore));
+      ctx.save.Set(STATS_HIGH_SCORE_KEY, stats.highScore);
+    }
+    // Suena una sola vez por jugada, aunque se eliminen varias líneas juntas.
+    if (lineClearSound) {
+      audioGroup.Play(*lineClearSound, true);
+    }
   }
 }
 
@@ -190,7 +260,7 @@ Piece Game::GenerateRandomPiece() const {
   piece.type = ctx.random.Int(0, PIECE_TYPE_COUNT - 1);
   piece.rotation = 0;
   piece.position = {(GRID_WIDTH / 2) - 2, 0};
-  piece.color = ctx.random.Color(sf::Color::Black, sf::Color::White);
+  piece.color = PIECE_COLORS[piece.type];
 
   return piece;
 }
@@ -240,11 +310,21 @@ bool Game::IsPieceValid(const Piece &piece) const {
 }
 
 void Game::Render() const {
+  sf::RectangleShape background(sf::Vector2f(gConfig.windowSize));
+  background.setFillColor(BACKGROUND_COLOR);
+  ctx.renderer.Draw(background);
+
   RenderBoard();
   RenderPiece(current, GetBoardOrigin(), true);
   RenderPiece(next, {gConfig.windowSize.x - 5.5f * BLOCK_SIZE, BLOCK_SIZE * 2.5f}, false);
 
   ctx.renderer.Draw(stats.scoreText);
+  ctx.renderer.Draw(stats.highScoreText);
+  if (gameOverActive) {
+    ctx.renderer.Draw(gameOverBackdrop);
+    ctx.renderer.Draw(gameOverTitle);
+    ctx.renderer.Draw(gameOverScore);
+  }
 }
 
 void Game::RenderBoard() const {
@@ -256,7 +336,7 @@ void Game::RenderBoard() const {
 
   for (int y = 0; y < GRID_HEIGHT; y++) {
     for (int x = 0; x < GRID_WIDTH; x++) {
-      shape.setFillColor(board[y][x].value_or(sf::Color::Transparent));
+      shape.setFillColor(board[y][x].value_or(BOARD_COLOR));
       shape.setPosition(origin + sf::Vector2f(x * BLOCK_SIZE, y * BLOCK_SIZE));
 
       ctx.renderer.Draw(shape);

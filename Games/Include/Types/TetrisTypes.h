@@ -21,6 +21,8 @@ namespace Tetris {
 
   struct Stats {
     int score;
+    int highScore;
     sf::Text scoreText{GetDefaultFont()};
+    sf::Text highScoreText{GetDefaultFont()};
   };
 } // namespace Tetris

@@ -14,14 +14,24 @@ namespace Tetris {
     Cooldown actionCooldown;
     Cooldown fallCooldown;
     Cooldown softDropCooldown;
+    Cooldown gameOverCooldown;
+    bool gameOverActive = false;
+    sf::RectangleShape gameOverBackdrop;
+    sf::Text gameOverTitle{GetDefaultFont()};
+    sf::Text gameOverScore{GetDefaultFont()};
+    AudioGroup audioGroup;
+    std::shared_ptr<sf::Music> music;
+    std::shared_ptr<sf::Sound> lineClearSound;
 
   public:
     Game(EngineContext &);
 
-    void Start();
-    void OnEvent(const sf::Event &);
-    void Update();
-    void Render() const;
+    void Start() override;
+    void OnEvent(const sf::Event &) override;
+    void Update() override;
+    void Render() const override;
+    void OnPause(bool paused) override;
+    void OnCleanup() override;
 
   private:
     void InitStats();
