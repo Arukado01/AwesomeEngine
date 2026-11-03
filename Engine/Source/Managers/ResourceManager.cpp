@@ -13,14 +13,20 @@ sf::Texture *ResourceManager::FetchTexture(const std::string &filename) {
 }
 
 sf::SoundBuffer *ResourceManager::FetchSound(const std::string &filename) {
-  if (!sounds_.contains(filename)) {
-    if (!sounds_[filename].loadFromFile("Content/Sounds/" + filename)) {
-      LOG_ERROR("Failed to load sound: {}", filename);
-      return nullptr;
-    }
-  }
+  return AcquireSound(filename).get();
+}
 
-  return &sounds_.at(filename);
+/* Comparte el buffer cargado para que los sonidos puedan conservarlo durante su reproducción. */
+std::shared_ptr<sf::SoundBuffer> ResourceManager::AcquireSound(const std::string &filename) {
+  if (!sounds_.contains(filename)) {
+    auto buffer = std::make_shared<sf::SoundBuffer>();
+    if (!buffer->loadFromFile("Content/Sounds/" + filename)) {
+      LOG_ERROR("Failed to load sound: {}", filename);
+      return {};
+    }
+    sounds_.emplace(filename, std::move(buffer));
+  }
+  return sounds_.at(filename);
 }
 
 sf::Font *ResourceManager::FetchFont(const std::string &filename) {

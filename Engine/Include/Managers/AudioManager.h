@@ -1,8 +1,15 @@
 #pragma once
+#include "Managers/AudioGroup.h"
 #include <SFML/System/Vector3.hpp>
 
 class AudioManager {
+private:
+  std::shared_ptr<AudioGroup::MixerState> mixer_ = std::make_shared<AudioGroup::MixerState>();
+
 public:
+  AudioGroup CreateGroup() const;
+  void SetChannelVolume(AudioChannel channel, float volume);
+  float GetChannelVolume(AudioChannel channel) const;
   void SetGlobalVolume(float volume);
   float GetGlobalVolume() const;
 
