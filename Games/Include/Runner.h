@@ -14,8 +14,9 @@ namespace Runner {
     std::deque<Obstacle> obstacles;
     Stats stats;
     GameOverState gameOver;
-    std::optional<sf::Music> music;
-    std::array<std::optional<sf::Sound>, static_cast<std::size_t>(PlayerSound::Count)> soundEffects;
+    std::shared_ptr<sf::Music> music;
+    std::array<std::shared_ptr<sf::Sound>, static_cast<std::size_t>(PlayerSound::Count)> soundEffects;
+    AudioGroup audioGroup;
     sf::RectangleShape ground;
     std::array<BackgroundLayer, BACKGROUND_LAYER_COUNT> backgroundLayers;
     BackgroundLayer foregroundCity;
@@ -65,8 +66,8 @@ namespace Runner {
     void HandleCollisionsPlayerObstacles();
 
     static sf::Texture &LoadTexture(EngineContext &context, const std::string &filename, bool repeated = false);
-    static std::optional<ObstacleHit> SweepObstacle(const sf::FloatRect &previousPlayer, const sf::FloatRect &currentPlayer,
-                                                    const sf::FloatRect &previousObstacle, const sf::FloatRect &currentObstacle);
+    std::optional<ObstacleHit> SweepObstacle(const sf::FloatRect &previousPlayer, const sf::FloatRect &currentPlayer,
+                                             const sf::FloatRect &previousObstacle, const sf::FloatRect &currentObstacle) const;
     static bool OverlapsHorizontally(const sf::FloatRect &playerBounds, const sf::FloatRect &obstacleBounds);
     void RenderGameOver() const;
     void RenderEnvironment() const;

@@ -18,7 +18,7 @@ namespace Runner {
   const float PLAYER_ANIMATION_MAX_FPS = 18;
   const float PLAYER_COLLISION_TOLERANCE = 0.001f;
 
-  const std::array<PlayerAnimationClip, 4> PLAYER_ANIMATIONS{{
+  const std::array<SpriteAnimationClip, 4> PLAYER_ANIMATIONS{{
       {0, 8, 12}, // Carrera
       {13, 2, 8}, // Salto
       {8, 5, 12}, // Deslizamiento
@@ -56,6 +56,16 @@ namespace Runner {
   const int SLIDE_DUST_MAX_SIZE = 4;
   const float DUST_OPACITY = 180;
   const sf::Color DUST_COLOR(180, 164, 140);
+  const std::array<ParticleEmitterConfig, 2> DUST_EMITTERS{{
+      {{-DUST_SPAWN_RADIUS, -DUST_SPAWN_HEIGHT}, {DUST_SPAWN_RADIUS, -DUST_SPAWN_HEIGHT},
+       {-FOOTSTEP_DUST_SPEED, -FOOTSTEP_DUST_LIFT}, {-FOOTSTEP_DUST_SPEED / 3, -DUST_MIN_LIFT},
+       {0, DUST_GRAVITY}, DUST_MIN_LIFETIME, DUST_MAX_LIFETIME, 1, FOOTSTEP_DUST_MAX_SIZE,
+       sf::Color(DUST_COLOR.r, DUST_COLOR.g, DUST_COLOR.b, static_cast<std::uint8_t>(DUST_OPACITY))},
+      {{-DUST_SPAWN_RADIUS, -DUST_SPAWN_HEIGHT}, {DUST_SPAWN_RADIUS, -DUST_SPAWN_HEIGHT},
+       {-SLIDE_DUST_SPEED, -SLIDE_DUST_LIFT}, {-SLIDE_DUST_SPEED / 3, -DUST_MIN_LIFT},
+       {0, DUST_GRAVITY}, DUST_MIN_LIFETIME, DUST_MAX_LIFETIME, 1, SLIDE_DUST_MAX_SIZE,
+       sf::Color(DUST_COLOR.r, DUST_COLOR.g, DUST_COLOR.b, static_cast<std::uint8_t>(DUST_OPACITY))},
+  }};
 
   const std::size_t BACKGROUND_LAYER_COUNT = 2;
   const std::array<std::string, BACKGROUND_LAYER_COUNT> BACKGROUND_TEXTURE_FILENAMES{{"RunnerSkyline.png", "RunnerCity.png"}};

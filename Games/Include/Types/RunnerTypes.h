@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Scene/Scene.h"
+#include "Managers/AnimationManager.h"
 
 namespace Runner {
   enum Action {
@@ -36,12 +37,6 @@ namespace Runner {
     bool looping;
   };
 
-  struct PlayerAnimationClip {
-    int firstFrame;
-    int frameCount;
-    float framesPerSecond;
-  };
-
   struct ObstacleHit {
     float time;
     bool landing;
@@ -55,7 +50,7 @@ namespace Runner {
     bool grounded = true;
     bool sliding = false;
     PlayerAnimation animation = PlayerAnimation::Run;
-    float animationTime = 0;
+    AnimationHandle animator = INVALID_ANIMATION;
     int animationFrame = -1;
     float stepImpact = 0;
     float slideDustTime = 0;

@@ -12,12 +12,14 @@ namespace Bounce {
   // Paleta controlada por el jugador.
   struct Paddle {
     sf::RectangleShape shape; // Forma
+    sf::FloatRect previousBounds;
     float speed; // Velocidad de movimiento, en píxeles por segundo
   };
 
   // Pelota que rebota por la pantalla.
   struct Ball {
     sf::CircleShape shape; // Forma
+    sf::FloatRect previousBounds;
     sf::Vector2f direction; // Dirección unitaria del movimiento (solo orienta, el módulo no importa)
     float speed; // Velocidad, en píxeles por segundo.
   };

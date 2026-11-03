@@ -12,8 +12,8 @@ using namespace Bounce;
 Game::Game(EngineContext &context)
     : Scene(context),
       ballSpawnCooldown(BALL_SPAWN_COOLDOWN_DURATION), // Temporizador de 2s entre pelotas
-      bounceSound(*ctx.resources.FetchSound(BOUNCE_SOUND_FILENAME)), // Buffer de audio cacheado por el ResourceManager
-      music(*ctx.resources.FetchMusic(MUSIC_FILENAME)) {
+      audioGroup(context.audio.CreateGroup()) {
+  ballSpawnCooldown.Bind(ctx.time);
   InitPaddle();
   InitStats();
   InitBackground();
@@ -49,18 +49,20 @@ void Game::InitBackground() {
 }
 
 void Game::InitBounceSound() {
-  bounceSound.setVolume(BOUNCE_SOUND_VOLUME);
+  bounceSound = audioGroup.AddSound(ctx.resources.AcquireSound(BOUNCE_SOUND_FILENAME), BOUNCE_SOUND_VOLUME);
 }
 
 // Música en loop infinito, con el tono original (pitch 1).
 void Game::InitMusic() {
-  music.setVolume(MUSIC_VOLUME);
-  music.setPitch(MUSIC_PITCH);
-  music.setLooping(true);
+  if (auto track = ctx.resources.FetchMusic(MUSIC_FILENAME)) {
+    music = audioGroup.AddMusic(std::move(*track), MUSIC_VOLUME, true);
+    music->setPitch(MUSIC_PITCH);
+  }
 }
 
 // Se llama cada vez que la escena (re)empieza, incluyendo el reinicio tras perder.
 void Game::Start() {
+  audioGroup.StopAll();
   ctx.cursor.SetVisible(false); // El mouse no se usa en este juego
 
   BindInputs();
@@ -105,7 +107,9 @@ void Game::StartStats() {
 }
 
 void Game::StartMusic() {
-  music.play();
+  if (music) {
+    audioGroup.Play(*music);
+  }
 }
 
 // Corre cada frame
@@ -126,6 +130,7 @@ void Game::Update() {
 // parcialmente fuera, hace rollback a esa posición.
 void Game::UpdatePaddle() {
   sf::Vector2f lastPosition = paddle.shape.getPosition();
+  paddle.previousBounds = paddle.shape.getGlobalBounds();
 
   if (ctx.input.Pressed(MoveLeft)) {
     paddle.shape.move({-paddle.speed * ctx.time.GetDeltaTime(), 0});
@@ -152,6 +157,7 @@ void Game::UpdateBalls() {
 // que la pelota se atraviese la pared si avanzó de más en un frame.
 void Game::UpdateBall(Ball &ball) {
   sf::Vector2f lastPosition = ball.shape.getPosition();
+  ball.previousBounds = ball.shape.getGlobalBounds();
 
   ball.shape.move(ball.direction * ball.speed * ctx.time.GetDeltaTime());
 
@@ -199,10 +205,24 @@ void Game::HandleCollisions() {
   HandleCollisionsBallsMap();
 }
 
-// Pelota contra paleta.
+/* Detecta el contacto de cada pelota con la paleta, incluso si la atravesó durante el frame. */
 void Game::HandleCollisionsPaddleBalls() {
   for (auto &ball : balls) {
-    if (ball.direction.y > 0 && Intersects(ball.shape, paddle.shape)) {
+    // Solo pueden rebotar en la paleta las pelotas que están bajando.
+    if (ball.direction.y <= 0) {
+      continue;
+    }
+    const auto bounds = ball.shape.getGlobalBounds();
+    // Compara las posiciones anteriores y actuales de la pelota y la paleta.
+    const auto hit = ctx.collisions.Sweep(ball.previousBounds, bounds, paddle.previousBounds, paddle.shape.getGlobalBounds());
+    const bool overlaps = ctx.collisions.Intersect(bounds, paddle.shape.getGlobalBounds()).has_value();
+    if (hit && !hit->initialOverlap && hit->normal.y < 0 && !overlaps) {
+      // Si atravesó la paleta en un frame, vuelve al punto de impacto antes de rebotar.
+      const auto contact = ball.previousBounds.position + (bounds.position - ball.previousBounds.position) * hit->time;
+      ball.shape.setPosition(contact + ball.shape.getOrigin());
+    }
+    // Conserva el rebote por solapamiento y añade el impacto por arriba detectado durante el movimiento.
+    if (overlaps || (hit && !hit->initialOverlap && hit->normal.y < 0)) {
       ResolveCollisionPaddleBall(ball);
     }
   }
@@ -211,7 +231,9 @@ void Game::HandleCollisionsPaddleBalls() {
 // Respuesta al rebote en la paleta: invierte el movimiento vertical, reproduce el efecto y suma 1 punto.
 void Game::ResolveCollisionPaddleBall(Ball &ball) {
   ball.direction.y *= -1;
-  bounceSound.play();
+  if (bounceSound) {
+    audioGroup.Play(*bounceSound, true);
+  }
 
   stats.score++;
   stats.scoreText.setString("Score: " + std::to_string(stats.score));
@@ -243,20 +265,12 @@ void Game::Render() const {
   ctx.renderer.Draw(stats.livesText);
 }
 
-// Pausa segura: congela el spawn de pelotas y silencia el audio.
+// Pausa y reanuda el audio que estaba activo en la escena.
 void Game::OnPause(bool paused) {
-  if (paused) {
-    ballSpawnCooldown.Stop(); // Congela los 2s de spawn
-    music.pause();
-    bounceSound.stop();
-  } else {
-    ballSpawnCooldown.Start();
-    music.play();
-  }
+  audioGroup.SetPaused(paused);
 }
 
 // Al salir de la escena detiene el audio.
 void Game::OnCleanup() {
-  music.stop();
-  bounceSound.stop();
+  audioGroup.StopAll();
 }

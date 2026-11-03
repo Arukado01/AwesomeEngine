@@ -3,234 +3,263 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
-#include <limits>
 #include <stdexcept>
 
 using namespace Runner;
 
-/* Carga el arte y el sonido UNA vez, al nacer la escena; durante la carrera ya nada más se crea. */
+/* Carga las texturas y registra la música y los efectos de la escena. */
 Game::Game(EngineContext &context)
-    : Scene(context), player(LoadTexture(context, PLAYER_TEXTURE_FILENAME)), music(context.resources.FetchMusic(MUSIC_FILENAME)) {
-  // el sprite pide su textura desde nacer: si Runner.png no existe, esta línea explota y avisamos en el init
-  InitEnvironment(); // crea fondos, plataforma y hoja de sprites de los obstáculos
-  InitGameOver(); // deja lista la pantalla del fin
-  if (music) { // la pista de música puede no existir: si falta, la partida sigue en silencio (no tumba el juego)
-    music->setLooping(true); // cuando el archivo se acaba, vuelve a empezar: siempre de fondo
-    music->setVolume(MUSIC_VOLUME); // volumen de la configuración
+    : Scene(context), player(LoadTexture(context, PLAYER_TEXTURE_FILENAME)), audioGroup(context.audio.CreateGroup()) {
+
+  InitEnvironment(); // El entorno y la pantalla de derrota se preparan una vez al crear la escena.
+  gameOver.restartCooldown.Bind(ctx.time);
+  InitGameOver();
+
+  // Cargar música.
+  if (auto track = ctx.resources.FetchMusic(MUSIC_FILENAME)) {
+    music = audioGroup.AddMusic(std::move(*track), MUSIC_VOLUME, true); // El grupo conserva la pista y aplica el volumen configurado para esta escena.
   }
+
+  // Se recorre las configuraciones de efectos.
   for (std::size_t index = 0; index < soundEffects.size(); ++index) {
-    const auto &config = PLAYER_SOUNDS[index]; // cada casilla: qué archivo se escucha con qué volumen y si va en bucle
-    if (auto *buffer = ctx.resources.FetchSound(config.filename); buffer && buffer->getSampleCount() > 0) {
-      // un efecto nace solo si su archivo carga y tiene audio (sampleCount > 0): uno roto no tumba al resto
-      auto &sound = soundEffects[index].emplace(*buffer);
-      sound.setVolume(config.volume);
-      sound.setLooping(config.looping); // la plancha suena EN bucle; el resto suena una vez
-    }
+    const auto &config = PLAYER_SOUNDS[index]; // En cada recorrido se revisa el archivo, su volumen y si se reproduce en bucle.
+    soundEffects[index] = audioGroup.AddSound(ctx.resources.AcquireSound(config.filename), config.volume, config.looping); // Si un archivo de sonido falta o está vacío, se omite sin detener la partida.
   }
 }
 
-/* Carga una textura por nombre: si no existe o vino vacía, lanza excepción y el error se agranda de frente... * nunca falla en silencio. */
+/* Carga una textura válida y configura su repetición y nitidez. */
 sf::Texture &Game::LoadTexture(EngineContext &context, const std::string &filename, bool repeated) {
   auto *texture = context.resources.FetchTexture(filename);
-  if (!texture || texture->getSize() == sf::Vector2u{}) { // nullptr o tamaño 0×0 = el PNG no está
+
+  if (!texture || texture->getSize() == sf::Vector2u{}) {
     throw std::runtime_error("No se pudo cargar la textura del runner: " + filename);
   }
-  texture->setSmooth(false); // pixel-art: el suavizado solo emborrona los bordes
-  texture->setRepeated(repeated); // fondos y plataforma tuilean (la textura se repite infinito); sprites no
+
+  texture->setSmooth(false); // Desactiva el suavizado para que el pixel art se vea nítido.
+  texture->setRepeated(repeated); // Permite repetir las texturas que se desplazan como fondo.
   return *texture;
 }
 
-/* Arma los planos del mundo: dos fondos de cielo, la plataforma y los edificios que corren por DELANTE del piso. */
+/* Prepara las capas del fondo, la plataforma y la textura de los obstáculos. */
 void Game::InitEnvironment() {
-  ground.setSize({gConfig.windowSize.x, GROUND_HEIGHT}); // la franja del piso: todo lo ancho, 10 píxeles de alto
-  ground.setPosition({0, gConfig.windowSize.y / 2}); // en la MITAD de la pantalla: arriba queda cielo, abajo "sótano"
+  // El borde de la plataforma ocupa todo el ancho y se sitúa a mitad de la ventana.
+  ground.setSize({gConfig.windowSize.x, GROUND_HEIGHT});
+  ground.setPosition({0, gConfig.windowSize.y / 2});
+
+  // Recorre las capas del fondo
   for (std::size_t index = 0; index < backgroundLayers.size(); ++index) {
-    auto &layer = backgroundLayers[index]; // capa por índice: 0 = skyline (muy lejos), 1 = ciudad (media distancia)
-    layer.shape.setTexture(&LoadTexture(ctx, BACKGROUND_TEXTURE_FILENAMES[index], true)); // textura tileable
-    layer.shape.setSize({gConfig.windowSize.x, ground.getPosition().y}); // cubren TODA la zona de cielo (hasta la línea de juego)
-    layer.shape.setFillColor(BACKGROUND_TINT); // tinte azulado apagado: lo lejano se ve más "de menos", profundidad a mano
+    auto &layer = backgroundLayers[index]; // Cada capa tiene su propia textura y posteriormente avanzará a una velocidad distinta.
+    layer.shape.setTexture(&LoadTexture(ctx, BACKGROUND_TEXTURE_FILENAMES[index], true));
+    layer.shape.setSize({gConfig.windowSize.x, ground.getPosition().y});
+    layer.shape.setFillColor(BACKGROUND_TINT);
   }
 
+  // El borde y el frente de la plataforma comparten una misma textura repetida.
   auto &platformTexture = LoadTexture(ctx, PLATFORM_TEXTURE_FILENAME, true);
-  ground.setTexture(&platformTexture); // el suelo deja de ser gris: muestra la franja superior del tile
-  ground.setFillColor(sf::Color::White); // blanco = pinta la textura 1:1, sin tinte cambiante
+  ground.setTexture(&platformTexture);
+  ground.setFillColor(sf::Color::White);
+
   platformFront.setTexture(&platformTexture);
-  platformFront.setPosition({0, ground.getPosition().y + GROUND_HEIGHT}); // empieza justo DEBAJO del borde
-  platformFront.setSize({gConfig.windowSize.x, gConfig.windowSize.y - platformFront.getPosition().y}); // baja hasta el pie de la ventana
+  platformFront.setPosition({0, ground.getPosition().y + GROUND_HEIGHT});
+  platformFront.setSize({gConfig.windowSize.x, gConfig.windowSize.y - platformFront.getPosition().y});
+
+  // La ciudad cercana cubre el frente de la plataforma sin modificar su altura.
   foregroundCity.shape.setTexture(&LoadTexture(ctx, FOREGROUND_TEXTURE_FILENAME, true));
   foregroundCity.shape.setFillColor(FOREGROUND_TINT);
-  foregroundCity.shape.setPosition(platformFront.getPosition()); // misma zona que platformFront...
-  foregroundCity.shape.setSize(platformFront.getSize()); // ...pero se dibuja ENCIMA: son los edificios de primer plano
+  foregroundCity.shape.setPosition(platformFront.getPosition());
+  foregroundCity.shape.setSize(platformFront.getSize());
 
-  obstacleTexture = &LoadTexture(ctx, OBSTACLE_TEXTURE_FILENAME); // el sheet de 4 columnas de obstáculos (sin tile)
+  // Guarda la textura que contiene las variantes visuales de los obstáculos
+  obstacleTexture = &LoadTexture(ctx, OBSTACLE_TEXTURE_FILENAME);
 }
 
-/* La pantalla del fin se deja lista antes de jugar: cuando se pierde, mostrarla cuesta cero trabajo en el frame del bajón. */
+/* Configura el fondo, los textos y la duración de la pantalla de derrota. */
 void Game::InitGameOver() {
+  // Las posiciones se expresan como proporciones del tamaño de la ventana.
   const auto initText = [](sf::Text &text, unsigned int size, sf::Color color, sf::Vector2f position) {
     text.setCharacterSize(size);
     text.setFillColor(color);
-    text.setPosition(gConfig.windowSize.componentWiseMul(position)); // posición por fracción: (0.5, 0.42) × ventana
+    text.setPosition(gConfig.windowSize.componentWiseMul(position));
   };
-  gameOver.restartCooldown.SetDuration(GAME_OVER_RESTART_DELAY); // cuánto dura el aviso: 2.5 s
+  gameOver.restartCooldown.SetDuration(GAME_OVER_RESTART_DELAY);
   gameOver.backdrop.setSize(gConfig.windowSize);
-  gameOver.backdrop.setFillColor(GAME_OVER_BACKDROP_COLOR); // velo casi negro semitransparente (tapa TODO el mundo detrás)
+  gameOver.backdrop.setFillColor(GAME_OVER_BACKDROP_COLOR);
   gameOver.title.setString(GAME_OVER_TITLE);
-  initText(gameOver.title, GAME_OVER_TITLE_SIZE, GAME_OVER_TITLE_COLOR, GAME_OVER_TITLE_POSITION); // a mitad de pantalla
-  gameOver.title.setOrigin(gameOver.title.getLocalBounds().getCenter()); // puntero al centro del texto: quedar centrado de verdad
+  initText(gameOver.title, GAME_OVER_TITLE_SIZE, GAME_OVER_TITLE_COLOR, GAME_OVER_TITLE_POSITION);
+  gameOver.title.setOrigin(gameOver.title.getLocalBounds().getCenter());
   initText(gameOver.distanceText, GAME_OVER_DISTANCE_TEXT_SIZE, GAME_OVER_DISTANCE_TEXT_COLOR, GAME_OVER_DISTANCE_TEXT_POSITION);
   initText(gameOver.restartText, GAME_OVER_RESTART_TEXT_SIZE, GAME_OVER_RESTART_TEXT_COLOR, GAME_OVER_RESTART_TEXT_POSITION);
 }
 
-/* Entrada a la escena (y a cada reinicio): entidades a cero, mundo en su arranque, jugador nuevo y música otra vez arriba. */
+/* Reinicia el estado de la partida y comienza la música. */
 void Game::Start() {
-  StopPlayerSounds(); // si venimos de otra ronda, ningún sonido andaba por ahí
-  ctx.cursor.SetVisible(false); // el mouse no se usa: que no distraiga
+  // Evita que se escuche algún sonido que haya quedado de la ronda anterior.
+  audioGroup.StopAll();
+  ctx.cursor.SetVisible(false);
 
   BindInputs();
 
-  obstacles.clear(); // sin los obstáculos de la ronda anterior
+  // Limpia el estado visual y el temporizador antes de comenzar la nueva partida.
+  obstacles.clear();
   ctx.particles.Clear();
-  gameOver.active = false; // ronda viva
+  gameOver.active = false;
   gameOver.restartRequested = false;
-  gameOver.restartCooldown.Reset(); // el contador del fin: a cero y detenido
+  gameOver.restartCooldown.Reset();
 
+  // Los desplazamientos vuelven a cero para que el escenario empiece desde el inicio.
   for (auto &layer : backgroundLayers) {
-    layer.offset = 0; // el parallax vuelve al arranque del tile
+    layer.offset = 0;
   }
   platformOffset = 0;
   foregroundCity.offset = 0;
 
   StartStats();
-  UpdateEnvironment(0); // con deltaTime cero: solo posiciona los recortes de textura sin avanzar (sin frame-1 torcido)
+  UpdateEnvironment(0); // Prepara los recortes iniciales sin avanzar el escenario.
   StartPlayer();
 
-  EventObstacleSpawn(); // el primer obstáculo nace ya: nunca arrancáis con la lista vacía
+  EventObstacleSpawn();
   if (music) {
-    music->stop();
-    music->setVolume(MUSIC_VOLUME); // (por si venimos de un Game Over, que lo había dejado bajito)
-    music->play(); // la banda nueva de la ronda
+    audioGroup.SetSourceVolume(*music, MUSIC_VOLUME);
+    // Reproduce la música registrada al comenzar la ronda.
+    audioGroup.Play(*music);
   }
 }
 
-/* Los controles: W salta (o A del mando); S es resbalada en el suelo y/plugin caída rápida en el aire; la palanca-Y también cae. */
+/* Asocia los controles de salto, deslizamiento y caída al teclado y al mando. */
 void Game::BindInputs() {
+  // W o el botón sur del mando impulsan al personaje hacia arriba.
   ctx.input.Bind(Jump, Input::Keyboard{sf::Keyboard::Scan::W});
   ctx.input.Bind(Jump, Input::Gamepad{GamepadButton::South});
 
+  // S o el botón oeste del mando solicitan el deslizamiento cuando hay apoyo.
   ctx.input.Bind(Crouch, Input::Keyboard{sf::Keyboard::Scan::S});
   ctx.input.Bind(Crouch, Input::Gamepad{GamepadButton::West});
 
-  ctx.input.Bind(Fall, Input::Keyboard{sf::Keyboard::Scan::S}); // la misma S: en el aire significa "cae más rápido"
+  // La misma tecla S aumenta la gravedad cuando el personaje está en el aire.
+  ctx.input.Bind(Fall, Input::Keyboard{sf::Keyboard::Scan::S});
   ctx.input.Bind(Fall, Input::Axis{sf::Joystick::Axis::Y});
 }
 
-/* Crea el jugador de cero: objeto limpio, caja de colisión apoyada en el suelo y su dibujo en el primer fotito. */
+/* Reinicia el jugador y lo coloca sobre el suelo con su primer cuadro. */
 void Game::StartPlayer() {
-  player = Player(player.sprite.getTexture()); // objeto NUEVO: sin memoria de otra ronda (animación, fases, impacto en default)
-  player.sprite.setOrigin({PLAYER_FRAME_SIZE.x / 2.f, static_cast<float>(PLAYER_FRAME_SIZE.y)}); // agarre del sprite: pies del fotito (32,64)
-  player.sprite.setScale(PLAYER_SPRITE_SCALE); // escala 1:1 del arte
-  player.shape.setSize(PLAYER_SIZE); // caja de colisión 28×48
-  player.shape.setOrigin(player.shape.getGeometricCenter()); // la caja se agarra por su centro (facilita centrar sin importar el alto)
+  // Al reiniciar, descarta la animación anterior antes de crear una nueva.
+  ctx.animations.Remove(player.animator);
+  // Se conserva la textura, pero se reinician la velocidad, animación y demás estados.
+  player = Player(player.sprite.getTexture());
+  player.animator = ctx.animations.Create();
+  player.sprite.setOrigin({PLAYER_FRAME_SIZE.x / 2.f, static_cast<float>(PLAYER_FRAME_SIZE.y)}); // El origen del sprite queda en sus pies.
+  player.sprite.setScale(PLAYER_SPRITE_SCALE);
+  player.shape.setSize(PLAYER_SIZE);
+  player.shape.setOrigin(player.shape.getGeometricCenter());
 
-  float positionY = ground.getPosition().y - player.shape.getSize().y / 2; // bajar la mitad del alto: los pies tocan el suelo
-  player.shape.setPosition({gConfig.windowSize.x / 6, positionY}); // a 1/6 de la pantalla, mirarido a la derecha
+  float positionY = ground.getPosition().y - player.shape.getSize().y / 2;
+  player.shape.setPosition({gConfig.windowSize.x / 6, positionY});
 
-  player.previousBounds = player.shape.getGlobalBounds(); // sin "recorrido fantasma" en el primer frame
-  UpdatePlayerAnimation(false); // coloca el primer fotito SIN sonido: por ahora hasta la música recién arrancó
+  // Conserva la caja anterior para detectar contactos durante el movimiento.
+  player.previousBounds = player.shape.getGlobalBounds();
+  UpdatePlayerAnimation(false); // Coloca el primer cuadro sin reproducir una pisada al iniciar.
 }
 
-/* Estadísticas de ronda nueva: velocidad inicial, separación del próximo obstáculo y distancia en cero. */
+/* Reinicia la velocidad, la distancia y la separación de obstáculos. */
 void Game::StartStats() {
   stats.distanceText.setFillColor(STATS_DISTANCE_TEXT_COLOR);
-  stats.distanceText.setPosition({10, 10}); // el HUD esquina superior izquierda
-  stats.speed = STATS_SPEED_START; // 200 píxeles por segundo
-  stats.obstacleNextX = ctx.random.Float(OBSTACLE_MIN_DISTANCE, OBSTACLE_MAX_DISTANCE); // separación del primer al segundo obstáculo
+  stats.distanceText.setPosition({10, 10});
+  stats.speed = STATS_SPEED_START;
+  stats.obstacleNextX = ctx.random.Float(OBSTACLE_MIN_DISTANCE, OBSTACLE_MAX_DISTANCE);
 
   stats.distance = 0;
   stats.distanceText.setString("Distance: 0");
 }
 
-/* El director por frame: con fin de partida, solo el aviso; sin él, toda la simulación en orden de dependencias. */
+/* Actualiza la simulación o mantiene el resultado visible mientras se espera el reinicio. */
 void Game::Update() {
-  // Mantiene el resultado visible sin avanzar la simulación durante la espera.
+  // Durante Game Over solo se actualiza la espera del reinicio.
   if (gameOver.active) {
-    UpdateGameOver(); // solo el contador del reinicio corre
-    return; // todo lo demás está CONGELADO: la pantalla cuentagotas se ve quieta detrás
+    UpdateGameOver();
+    return;
   }
 
-  UpdateEffects(); // Actualiza el polvo y el impacto de las pisadas.
-  UpdateEnvironment(ctx.time.GetDeltaTime()); // el parallax también avanza solo: el mundo corre aunque el jugador esté en el aire
-  if (ctx.input.Pressed(Jump) && player.grounded && !player.sliding) { // saltar: solo con contactos y sin plancha activa
-    player.velocity.y = PLAYER_JUMP_VELOCITY; // impulso: −600 (negativo = hacia arriba, porque la pantalla crece hacia abajo)
+  // Los efectos existentes se mueven antes de generar nuevas partículas este frame.
+  UpdateEffects();
+  UpdateEnvironment(ctx.time.GetDeltaTime());
+  // Solo se puede saltar desde una superficie y cuando no hay deslizamiento activo.
+  if (ctx.input.Pressed(Jump) && player.grounded && !player.sliding) {
+    player.velocity.y = PLAYER_JUMP_VELOCITY;
     player.grounded = false;
     PlayPlayerSound(PlayerSound::Jump);
   }
 
-  UpdatePlayer(); // gravedad + tamaño (plancha) + paso de integración
-  UpdateObstacles(); // nacen, viajan y se retiran
-  UpdateStats(); // velocidad y distancia
+  UpdatePlayer();
+  UpdateObstacles();
+  UpdateStats();
 
-  HandleCollisionsPlayerObstacles(); // vida o muerte: el PRIMER contacto del frame decide
-  UpdatePlayerGrounded(); // ajuste final contra el suelo (PUNTO de no-pisadazo)
-  UpdatePlayerAnimation(); // fotito del frame, calculado con la posición YA definitiva
-  UpdatePlayerEffects(); // polvo de plancha y aplastamiento según la pisada
+  // Las colisiones y el apoyo se resuelven antes de elegir la animación visible.
+  HandleCollisionsPlayerObstacles();
+  UpdatePlayerGrounded();
+  UpdatePlayerAnimation();
+  UpdatePlayerEffects();
 }
 
-/* Física del jugador por frame: el tamaño (plancha), la foto previa para colisiones, la gravedad y el paso de integración. */
+/* Ajusta el tamaño del jugador y aplica la gravedad y el movimiento vertical. */
 void Game::UpdatePlayer() {
-  UpdatePlayerSize(); // puede entrar/salir de plancha: la caja cambia ANTES de capturar el "antes"
-  player.previousBounds = player.shape.getGlobalBounds(); // FOTO ANTES: la colisión swept necesita de dónde ARRANCó este frame
-  const float delta = ctx.time.GetDeltaTime(); // duración del frame en segundos (≈0.0167 a 60 fps)
+  UpdatePlayerSize();
+  // Conserva la caja anterior para detectar contactos durante el movimiento.
+  player.previousBounds = player.shape.getGlobalBounds();
+  const float delta = ctx.time.GetDeltaTime();
+  // Mantener caída rápida aumenta la gravedad únicamente mientras está en el aire.
   const float gravity = PLAYER_GRAVITY * (ctx.input.Pressed(Fall) && !player.grounded ? PLAYER_FALL_FACTOR : 1.f);
-  player.velocity.y += gravity * delta; // la velocidad vertical CRECE con la gravedad: es una caída acelerada, no constante
-  player.shape.move({0, player.velocity.y * delta}); // mueve SOLO en Y: el "correr" horizontal lo pone el mundo que viene
-  player.grounded = false; // asumir aire: el suelo y las colisiones lo confirman (o no) al final del frame
+  player.velocity.y += gravity * delta;
+  player.shape.move({0, player.velocity.y * delta});
+  player.grounded = false; // El suelo o un obstáculo confirmarán el apoyo después del movimiento.
 }
 
-/* Qué hacer con la plancha: pedidos de entrar/salir, el bloqueo bajo obstáculos y los tiempos de la animación. */
+/* Controla la entrada y salida del deslizamiento sin levantar al jugador bajo un obstáculo. */
 void Game::UpdatePlayerSize() {
+  // El cambio de caja solo se permite mientras el personaje tiene apoyo.
   if (!player.grounded) {
-    return; // en el aire no cambia el tamaño: evita bugs de "agacharse mientras cae"
-  }
-
-  const bool requested = ctx.input.Pressed(Crouch); // ¿S está presionada AHORA?
-  if (player.sliding) { // Estado: ya va en plancha
-    if (requested) { // sigue presionando: se queda así
-      if (player.slidePhase == SlidePhase::Recover) {
-        SetSlidePhase(SlidePhase::Loop); // se arrepientó en pleno "levantando": vuelve al ciclo de plancha
-      }
-      return;
-    }
-    // Bajo un obstáculo conserva la plancha hasta disponer de espacio para levantarse.
-    if (!CanPlayerStand()) {
-      SetSlidePhase(SlidePhase::Loop); // hay algo arriba: te mantiene deslizando aunque sueltes S (no morirías si te levantas)
-      return;
-    }
-    if (player.slidePhase != SlidePhase::Recover) {
-      SetSlidePhase(SlidePhase::Recover); // soltó y hay espacio: arranca la mini-animación de levantarse
-      return;
-    }
-    const auto &clip = PLAYER_ANIMATIONS[static_cast<std::size_t>(PlayerAnimation::Slide)];
-    if (player.slidePhaseTime < SLIDE_RECOVER_FRAME_COUNT / clip.framesPerSecond) {
-      return; // el "levantándose" no terminó sus 2 fotitos (2/12 s): la caja TODAVÍA se mantiene baja
-    }
-  } else if (!requested) { // no va en plancha y no la pedidió: nada que hacer
     return;
   }
 
-  // Solo se llega aquí si corresponde alternar el estado (entrar o salir de la plancha):
+  const bool requested = ctx.input.Pressed(Crouch);
+  if (player.sliding) {
+    if (requested) {
+      if (player.slidePhase == SlidePhase::Recover) {
+        SetSlidePhase(SlidePhase::Loop);
+      }
+      return;
+    }
+
+    // La caja se mantiene baja mientras un obstáculo impida levantarse.
+    if (!CanPlayerStand()) {
+      SetSlidePhase(SlidePhase::Loop);
+      return;
+    }
+    // Al soltar el control comienza la recuperación antes de volver a la caja alta.
+    if (player.slidePhase != SlidePhase::Recover) {
+      SetSlidePhase(SlidePhase::Recover);
+      return;
+    }
+    const auto &clip = PLAYER_ANIMATIONS[static_cast<std::size_t>(PlayerAnimation::Slide)];
+    // La caja baja se mantiene hasta completar los cuadros de recuperación.
+    if (player.slidePhaseTime < SLIDE_RECOVER_FRAME_COUNT / clip.framesPerSecond) {
+      return;
+    }
+  } else if (!requested) {
+    return;
+  }
+
   const bool sliding = !player.sliding;
-  const float oldHeight = player.shape.getSize().y; // altura actual (48 de pie, 25 en plancha)
-  const auto newSize = sliding ? PLAYER_SLIDE_SIZE : PLAYER_SIZE; // 54×25 ↔ 28×48
+  const float oldHeight = player.shape.getSize().y;
+  const auto newSize = sliding ? PLAYER_SLIDE_SIZE : PLAYER_SIZE;
   player.shape.setSize(newSize);
-  player.shape.setOrigin(player.shape.getGeometricCenter()); // re-agarrar por el centro, que cambió al cambiar el tamaño
-  player.shape.move({0, (oldHeight - newSize.y) / 2}); // compensa al Uruguay: los pies quedan en el MISMO píxel del suelo
+  player.shape.setOrigin(player.shape.getGeometricCenter());
+  // Compensa el cambio de altura para mantener los pies sobre la superficie.
+  player.shape.move({0, (oldHeight - newSize.y) / 2});
   player.sliding = sliding;
-  SetSlidePhase(SlidePhase::Prepare); // (re)arranque de la mini-secuencia del estado
+  SetSlidePhase(SlidePhase::Prepare);
 }
 
-/* Cambia la fase de la plancha y reinicia su reloj: solo si la fase in real cambia (nada de resets eternos). */
+/* Cambia la fase del deslizamiento y reinicia su temporizador. */
 void Game::SetSlidePhase(SlidePhase phase) {
   if (player.slidePhase != phase) {
     player.slidePhase = phase;
@@ -238,365 +267,370 @@ void Game::SetSlidePhase(SlidePhase phase) {
   }
 }
 
-/* ¿Cabe de pie aquí? Mide la caja que tendría DE PIE y busca que ningún obstáculo la atraviese. */
+/* Comprueba si hay espacio suficiente para volver a ponerse de pie. */
 bool Game::CanPlayerStand() const {
-  const auto bounds = player.shape.getGlobalBounds(); // caja de plancha (54×25) actual
-  const sf::FloatRect standingBounds({player.shape.getPosition().x - PLAYER_SIZE.x / 2, // ...mismo centro-X
-                                      bounds.position.y + bounds.size.y - PLAYER_SIZE.y}, // ...misma base, altura de pie
-                                     PLAYER_SIZE); // "la caja de solo levantarme acá mismo"
+  const auto bounds = player.shape.getGlobalBounds();
+  // Construye la caja que ocuparía el personaje de pie, manteniendo la misma base.
+  const sf::FloatRect standingBounds({player.shape.getPosition().x - PLAYER_SIZE.x / 2,
+                                      bounds.position.y + bounds.size.y - PLAYER_SIZE.y},
+                                     PLAYER_SIZE);
   return std::none_of(obstacles.begin(), obstacles.end(), [&](const Obstacle &obstacle) {
     const auto &obstacleBounds = obstacle.bounds;
-    return obstacleBounds.position.y < bounds.position.y + bounds.size.y - PLAYER_COLLISION_TOLERANCE && // solo cuenta obstáculos que SOBRESALDRÍN por encima
-           standingBounds.findIntersection(obstacleBounds).has_value(); // y si la caja de pie chocara ese algo: pararse aquí sería morir
+    return obstacleBounds.position.y < bounds.position.y + bounds.size.y - PLAYER_COLLISION_TOLERANCE &&
+           ctx.collisions.Intersect(standingBounds, obstacleBounds).has_value();
   });
 }
 
-/* Si la caída del frame atravesó el suelo, se reconstruye sobre él: pies exactos, caída frenada y "está en el suelo". */
+/* Apoya al jugador sobre el suelo cuando sus pies llegan a la plataforma. */
 void Game::UpdatePlayerGrounded() {
-  float halfHeight = player.shape.getSize().y / 2; // la mitad del alto actual (de pie o plancha): depende
+  float halfHeight = player.shape.getSize().y / 2;
 
-  if (player.shape.getPosition().y + halfHeight >= ground.getPosition().y) { // los pies superaron la línea del suelo
-    player.shape.setPosition({player.shape.getPosition().x, ground.getPosition().y - halfHeight}); // volvé a la superficie EXACTA
-    player.velocity.y = 0; // la caida murió: ya no te sigue bajando
+  // Si los pies cruzan el suelo, corrige la posición y detiene la caída.
+  if (player.shape.getPosition().y + halfHeight >= ground.getPosition().y) {
+    player.shape.setPosition({player.shape.getPosition().x, ground.getPosition().y - halfHeight});
+    player.velocity.y = 0;
     player.grounded = true;
-  } // SIN else: si NO cruzó el suelo (cayó sobre un obstáculo, por ejemplo) no se toca nada
+  }
 }
 
-/* El cerebro de la animación: elige la animación según tu estado, avanza su reloj y traduce "número de fotito" a la casilla del PNG. */
-void Game::UpdatePlayerAnimation(bool emitSound) { // false solo al iniciar la escena: sin inputs vivos, las pisadas nacen mudas
-  auto animation = PlayerAnimation::Run; // por defecto: corriendo
-  if (player.sliding) {
-    animation = PlayerAnimation::Slide; // plancha tiene prioridad máxima
-  } else if (!player.grounded) {
-    animation = player.velocity.y < 0 ? PlayerAnimation::Jump : PlayerAnimation::Fall; // ¿estás SUBiendo (velocidad negativa) o cayendo?
+/* Selecciona la animación según el estado y actualiza el cuadro y la posición del sprite. */
+void Game::UpdatePlayerAnimation(bool emitSound) {
+  auto *animator = ctx.animations.Get(player.animator);
+  if (!animator) {
+    // Si el manager se limpió, recupera el animador y vuelve a colocar el cuadro.
+    player.animator = ctx.animations.Create();
+    animator = ctx.animations.Get(player.animator);
+    player.animationFrame = -1;
   }
-  if (animation != player.animation) { // cambió la animación: reinicia su reloj y el fotito actual
+  // El deslizamiento tiene prioridad; sin apoyo se elige salto o caída por la velocidad vertical.
+  auto animation = PlayerAnimation::Run;
+  if (player.sliding) {
+    animation = PlayerAnimation::Slide;
+  } else if (!player.grounded) {
+    animation = player.velocity.y < 0 ? PlayerAnimation::Jump : PlayerAnimation::Fall;
+  }
+  // Al cambiar de animación se reinicia el avance y se fuerza el primer recorte.
+  if (animation != player.animation) {
     player.animation = animation;
-    player.animationTime = 0; // reloj del ciclo, EN UNIDADES DE FOTITO
-    player.animationFrame = -1; // −1 = "aún no pinté ningún frame": dispara la pisada inicial
+    animator->Reset();
+    player.animationFrame = -1;
+    // El contacto inicial de la plancha levanta una ráfaga de polvo.
     if (animation == PlayerAnimation::Slide && player.grounded) {
       const auto bounds = player.shape.getGlobalBounds();
-      EmitDust({bounds.position.x, bounds.position.y + bounds.size.y}, SLIDE_DUST_BURST_COUNT, true); // frenada: ráfaga grande de 10
+      EmitDust({bounds.position.x, bounds.position.y + bounds.size.y}, SLIDE_DUST_BURST_COUNT, true);
     }
   }
 
-  const auto &clip = PLAYER_ANIMATIONS[static_cast<std::size_t>(animation)]; // clip = {donde arranca, cuantos, a qué velocidad}
+  const auto &clip = PLAYER_ANIMATIONS[static_cast<std::size_t>(animation)];
   int frame = 0;
   if (animation == PlayerAnimation::Run) {
-    // Conserva una cadencia legible sin acelerar excesivamente los pasos.
+    // La carrera acelera con el juego, pero tiene un límite para conservar la legibilidad.
     const float playbackSpeed = std::min(clip.framesPerSecond * stats.speed / STATS_SPEED_START, PLAYER_ANIMATION_MAX_FPS);
-    // fps efectivos: 12 × (velocidad actual / 200), con tope de 18 (más rápido sería una mancha)
-    const float nextTime = player.animationTime + ctx.time.GetDeltaTime() * playbackSpeed; // a OPEN llega el reloj luego de este frame
+
+    // El cuadro inicial se procesa aquí porque Advance solo notifica cuadros cruzados.
     if (player.animationFrame < 0) {
-      EventPlayerFootstep(PLAYER_FOOTSTEP_FRAMES.front(), emitSound); // ciclo recién nacido: pisada inicial
+      EventPlayerFootstep(PLAYER_FOOTSTEP_FRAMES.front(), emitSound);
     }
-    // Emite una pisada únicamente al cruzar un cuadro de contacto, incluso al cerrar el ciclo.
-    for (int step = static_cast<int>(player.animationTime) + 1; step <= static_cast<int>(nextTime); ++step) {
-      if (std::ranges::find(PLAYER_FOOTSTEP_FRAMES, step % clip.frameCount) != PLAYER_FOOTSTEP_FRAMES.end()) {
-        EventPlayerFootstep(step % clip.frameCount, emitSound); // el % convierte el fotito 8 de la vuelta en el 0 del siguiente
-      }
-    }
-    player.animationTime = std::fmod(nextTime, static_cast<float>(clip.frameCount)); // nunca rebasa el largo del ciclo: da vueltas
-    frame = static_cast<int>(player.animationTime);
+
+    // Comprueba todos los cuadros cruzados para no perder pisadas en frames largos.
+    frame = animator->Advance(ctx.time.GetDeltaTime(),
+                              clip.frameCount,
+                              playbackSpeed,
+                              [&](int crossedFrame) {
+                                if (std::ranges::find(PLAYER_FOOTSTEP_FRAMES, crossedFrame) != PLAYER_FOOTSTEP_FRAMES.end()) {
+                                  EventPlayerFootstep(crossedFrame, emitSound);
+                                }
+                              });
+
   } else if (animation == PlayerAnimation::Slide) {
-    if (player.grounded) { // en el aire la fase NO avanza: el fotito queda congelado (no se ve raro al saltar en plancha)
+    // Las fases del deslizamiento no avanzan mientras el personaje está en el aire.
+    if (player.grounded) {
       player.slidePhaseTime += ctx.time.GetDeltaTime();
     }
     if (player.slidePhase == SlidePhase::Prepare && player.slidePhaseTime >= SLIDE_PREPARE_DURATION) {
-      SetSlidePhase(SlidePhase::Loop); // 0.10 s de "entrando" → pasa al ciclo de plancha
+      // Después de la preparación comienza el ciclo de deslizamiento.
+      SetSlidePhase(SlidePhase::Loop);
     }
     if (player.slidePhase == SlidePhase::Loop) {
-      const float cycleDuration = SLIDE_LOOP_FRAME_COUNT / SLIDE_LOOP_FPS; // 2 fotitos a 6 fps = 0.333 s por vuelta
+      // El resto de la división hace que los cuadros de la plancha vuelvan a comenzar.
+      const float cycleDuration = SLIDE_LOOP_FRAME_COUNT / SLIDE_LOOP_FPS;
       player.slidePhaseTime = std::fmod(player.slidePhaseTime, cycleDuration);
-      frame = SLIDE_LOOP_FIRST_FRAME + static_cast<int>(player.slidePhaseTime * SLIDE_LOOP_FPS); // alterna el 1 y el 2
+      frame = SLIDE_LOOP_FIRST_FRAME + static_cast<int>(player.slidePhaseTime * SLIDE_LOOP_FPS);
     } else if (player.slidePhase == SlidePhase::Recover) {
+      // Limita el cuadro para que la recuperación se quede en su última pose.
       frame = SLIDE_RECOVER_FIRST_FRAME + std::min(static_cast<int>(player.slidePhaseTime * clip.framesPerSecond),
-                                                   SLIDE_RECOVER_FRAME_COUNT - 1); // 3 → 4 y SE QUEDA en 4 (avança una sola vez)
+                                                   SLIDE_RECOVER_FRAME_COUNT - 1);
     }
   } else if (animation == PlayerAnimation::Jump) {
-    // Pasa de impulso a recogida de piernas al acercarse al punto más alto.
+    // Cambia de pose cuando la velocidad de subida se acerca a cero.
     frame = player.velocity.y < PLAYER_JUMP_VELOCITY / 2 ? 0 : clip.frameCount - 1;
   } else if (animation == PlayerAnimation::Fall) {
-    frame = ctx.input.Pressed(Fall) ? clip.frameCount - 1 : 0; // con S: piernas recogidas (caída rápida); sin: caída normal
+    // Usa la pose de caída rápida mientras se mantiene la acción de caer.
+    frame = ctx.input.Pressed(Fall) ? clip.frameCount - 1 : 0;
   }
 
-  const int sheetFrame = clip.firstFrame + frame; // el fotito del clip → número de fila y columna en el sheet completo
-  player.animationFrame = frame;
-  player.sprite.setTextureRect({{(sheetFrame % PLAYER_SHEET_COLUMNS) * PLAYER_FRAME_SIZE.x, // columna = fotito % 4
-                                 (sheetFrame / PLAYER_SHEET_COLUMNS) * PLAYER_FRAME_SIZE.y}, // fila = fotito ÷ 4
-                                PLAYER_FRAME_SIZE}); // la casilla 64×64 del PNG a mostrar
+  if (player.animationFrame != frame) {
+    // Solo cambia el recorte cuando la animación alcanza otro cuadro.
+    player.animationFrame = frame;
+    player.sprite.setTextureRect(SpriteAnimator::FrameRect(clip, frame, PLAYER_SHEET_COLUMNS, PLAYER_FRAME_SIZE));
+  }
 
-  // Redondea solo el dibujo, sin alterar la precisión de las colisiones.
+  // Alinea los pies del sprite con la base de la caja sin redondear la física.
   const auto bounds = player.shape.getGlobalBounds();
-  player.sprite.setPosition({std::round(bounds.position.x + bounds.size.x / 2), // centro-X de la caja (¡el redondeo no va aquí!)
-                             std::round(bounds.position.y + bounds.size.y)}); // PIES de la caja: el sprite nace pegado a sus pies
+  player.sprite.setPosition({std::round(bounds.position.x + bounds.size.x / 2),
+                             std::round(bounds.position.y + bounds.size.y)});
 }
 
-/* Actualiza el impacto de las pisadas y el movimiento del polvo. */
+/* Actualiza el impacto de las pisadas y el movimiento de las partículas. */
 void Game::UpdateEffects() {
   const float delta = ctx.time.GetDeltaTime();
-  player.stepImpact = std::max(0.f, player.stepImpact - delta / FOOTSTEP_DURATION); // el aplastamiento baja 0→0.12 s (lineal)
-  ctx.particles.Update(delta, {-stats.speed * DUST_SCROLL_FACTOR, 0}); // El polvo se desplaza con el mundo.
+  // El impacto disminuye de forma gradual hasta que el sprite recupera su escala normal.
+  player.stepImpact = std::max(0.f, player.stepImpact - delta / FOOTSTEP_DURATION);
+  // El polvo retrocede con el escenario y conserva su propia velocidad.
+  ctx.particles.Update(delta, {-stats.speed * DUST_SCROLL_FACTOR, 0});
 }
 
-/* El parallax: cada plano avanza su offset según su velocidad relativa y recalcula la "ventana" de recorte de la textura repetida. */
+/* Desplaza las capas del fondo y la plataforma según la velocidad de la partida. */
 void Game::UpdateEnvironment(float deltaTime) {
-  const int width = static_cast<int>(std::ceil(gConfig.windowSize.x / ENVIRONMENT_PIXEL_SCALE)); // pixel-art × 2: en textura son 480 px
+  const int width = static_cast<int>(std::ceil(gConfig.windowSize.x / ENVIRONMENT_PIXEL_SCALE));
   const auto scrollLayer = [&](BackgroundLayer &layer, float speedFactor) {
     const float textureWidth = static_cast<float>(layer.shape.getTexture()->getSize().x);
+    // Cada factor controla la velocidad de la capa; fmod vuelve al comienzo al completar la textura.
     layer.offset = std::fmod(layer.offset + stats.speed * speedFactor * deltaTime / ENVIRONMENT_PIXEL_SCALE, textureWidth);
-    // offset avanza (velocidad × factor ▸ dTIME) y fmod lo devuelve al Início al pasar el ancho: bucle infinito
+
     const int height = static_cast<int>(std::ceil(layer.shape.getSize().y / ENVIRONMENT_PIXEL_SCALE));
-    layer.shape.setTextureRect({{static_cast<int>(layer.offset), 0}, {width, height}}); // la FORMA no se mueve: corre el RECORTE dentro del tile
+    layer.shape.setTextureRect({{static_cast<int>(layer.offset), 0}, {width, height}}); // Mueve el recorte, no la forma.
   };
   for (std::size_t index = 0; index < backgroundLayers.size(); ++index) {
-    scrollLayer(backgroundLayers[index], BACKGROUND_SPEED_FACTORS[index]); // lejano 0.08×, medio 0.24×: de lejos = lento
+    scrollLayer(backgroundLayers[index], BACKGROUND_SPEED_FACTORS[index]);
   }
-  scrollLayer(foregroundCity, FOREGROUND_SPEED_FACTOR); // primer plano: 1.2×, MÁS RÁPIDO que el suelo (está MUY cerca)
+  scrollLayer(foregroundCity, FOREGROUND_SPEED_FACTOR);
 
   const auto textureWidth = ground.getTexture()->getSize().x;
   platformOffset = std::fmod(platformOffset + stats.speed * deltaTime / ENVIRONMENT_PIXEL_SCALE, static_cast<float>(textureWidth));
-  const int offset = static_cast<int>(platformOffset); // en el piso no hay factor: 1.0× EXACTO — los pies no derrapan
-  const int lipHeight = static_cast<int>(GROUND_HEIGHT / ENVIRONMENT_PIXEL_SCALE); // la franja del borde: 10/2 = 5 px de textura
-  ground.setTextureRect({{offset, 0}, {width, lipHeight}}); // el borde SIEMPRE muestra la parte de arriba del tile
+  const int offset = static_cast<int>(platformOffset);
+  // El borde y el frente comparten el mismo desplazamiento para que no se separen.
+  const int lipHeight = static_cast<int>(GROUND_HEIGHT / ENVIRONMENT_PIXEL_SCALE);
+  ground.setTextureRect({{offset, 0}, {width, lipHeight}});
   platformFront.setTextureRect({{offset, lipHeight}, {width, static_cast<int>(platformFront.getSize().y / ENVIRONMENT_PIXEL_SCALE)}});
-} // y el cuerpo muestra lo demás: comparten el offset → borde y cuerpo caminan emparejados
+}
 
-/* Cosas pegadas al jugador: su sonido de plancha (arranque/parada inteligente), el polvo mientras resbala y el aplastamiento. */
+/* Controla el sonido y el polvo del deslizamiento y la compresión al pisar. */
 void Game::UpdatePlayerEffects() {
   auto &slideSound = soundEffects[static_cast<std::size_t>(PlayerSound::Slide)];
+  // El sonido solo acompaña la plancha mientras el personaje esté apoyado y la partida siga activa.
   if (player.sliding && player.grounded && !gameOver.active) {
-    PlayPlayerSound(PlayerSound::Slide); // plancha activa: el arrastre sigue sonando
+    PlayPlayerSound(PlayerSound::Slide);
   } else if (slideSound && slideSound->getStatus() != sf::SoundSource::Status::Stopped) {
-    // SFML espera al hilo de audio en stop(); no repetir esa espera en cada cuadro.
-    slideSound->stop(); // solo se llama cuando HAY que cortarlo (ni actúe cada frame)
+    // Detiene el arrastre solo si estaba activo o pausado.
+    audioGroup.Stop(*slideSound);
   }
-  if (player.sliding && player.grounded) { // el polvo expulsado durante la plancha con acumulador:
+  if (player.sliding && player.grounded) {
+    // Acumula el tiempo para emitir polvo a intervalos constantes, independientemente de los FPS.
     player.slideDustTime += ctx.time.GetDeltaTime();
     const auto bounds = player.shape.getGlobalBounds();
-    while (player.slideDustTime >= SLIDE_DUST_INTERVAL) { // while (no if): a fps bajos no se pierde dobras tandas
+    // Genera todas las tandas correspondientes al tiempo acumulado.
+    while (player.slideDustTime >= SLIDE_DUST_INTERVAL) {
       player.slideDustTime -= SLIDE_DUST_INTERVAL;
       EmitDust({bounds.position.x, bounds.position.y + bounds.size.y}, SLIDE_DUST_COUNT, true);
     }
   } else {
-    player.slideDustTime = 0; // sin plancha: reinicia el acumulador
+    player.slideDustTime = 0;
   }
 
-  // Comprime brevemente el cuerpo contra el suelo sin mover la caja de colisión.
-  const float impact = player.grounded && !player.sliding ? player.stepImpact : 0; // SOLO al estar pisado en la carrera normal
-  player.sprite.setScale({PLAYER_SPRITE_SCALE.x * (1 + FOOTSTEP_COMPRESSION * impact), // se ensancha un 4% respecto al impacto
-                          PLAYER_SPRITE_SCALE.y * (1 - FOOTSTEP_COMPRESSION * impact)}); // y se aplasta un 4%: efecto "cartoon"
+  // La escala cambia el sprite brevemente, pero no modifica la caja de colisión.
+  const float impact = player.grounded && !player.sliding ? player.stepImpact : 0;
+  player.sprite.setScale({PLAYER_SPRITE_SCALE.x * (1 + FOOTSTEP_COMPRESSION * impact),
+                          PLAYER_SPRITE_SCALE.y * (1 - FOOTSTEP_COMPRESSION * impact)});
 }
 
-/* El mundo corre: nace quien toque a la derecha, todos viajan a la izquierda y algo que salió queda fuera. */
+/* Genera y desplaza obstáculos, y elimina los que salen de la pantalla. */
 void Game::UpdateObstacles() {
+  // Cuando hay suficiente separación desde el último obstáculo, se genera el siguiente.
   if (obstacles.empty() || obstacles.back().bounds.position.x < gConfig.windowSize.x - stats.obstacleNextX) {
-    EventObstacleSpawn(); // el último quedó a X píxeles del borde: toca crear otro (y empty() PRIMERO: nunca back() de lista vacía)
-    stats.obstacleNextX = ctx.random.Float(OBSTACLE_MIN_DISTANCE, OBSTACLE_MAX_DISTANCE); // la separación del SIGUIENTE también es al azar
+    EventObstacleSpawn();
+    stats.obstacleNextX = ctx.random.Float(OBSTACLE_MIN_DISTANCE, OBSTACLE_MAX_DISTANCE);
   }
   const float movement = stats.speed * ctx.time.GetDeltaTime();
   for (auto &obstacle : obstacles) {
-    obstacle.previousBounds = obstacle.bounds; // FOTO ANTES de mover: la colisión swept necesita el "antes"
+    // Guarda la caja previa antes de moverla para detectar contactos durante el frame.
+    obstacle.previousBounds = obstacle.bounds;
     obstacle.bounds.position.x -= movement;
   }
   while (!obstacles.empty() && obstacles.front().bounds.position.x + obstacles.front().bounds.size.x < 0) {
-    obstacles.pop_front(); // salió por la izquierda: fuera de la cola (pop_front en deque es barato)
+    // Los obstáculos que ya salieron por la izquierda dejan de participar en el juego.
+    obstacles.pop_front();
   }
 }
 
-/* La velocidad del juego crece con el tiempo (a +10/s, hasta 800) y el HUD solo se refresca cuando el número mostrado CAMBIA. */
+/* Aumenta la velocidad y la distancia y actualiza el marcador cuando cambia. */
 void Game::UpdateStats() {
-  const int previousDistance = GetDistance(); // el "antes", para comparar
+  const int previousDistance = GetDistance();
   stats.speed = std::min(stats.speed + STATS_SPEED_INCREASE * ctx.time.GetDeltaTime(), STATS_SPEED_MAX);
 
-  stats.distance += stats.speed * ctx.time.GetDeltaTime(); // la distancia acumula el recorrido en píxeles
+  stats.distance += stats.speed * ctx.time.GetDeltaTime();
+  // Actualiza el texto solo cuando cambia la distancia entera que ve el jugador.
   if (GetDistance() != previousDistance) {
     stats.distanceText.setString(std::format("Distance: {}", GetDistance()));
-  } // solo cuando cambió el entero: 60 setString/frame sería desperdicio
+  }
 }
 
-int Game::GetDistance() const { return static_cast<int>(stats.distance) / STATS_DISTANCE_SCALE; } // píxeles recorridos ÷ 100 = "metros" del HUD
+/* Convierte la distancia recorrida a las unidades mostradas en pantalla. */
+int Game::GetDistance() const { return static_cast<int>(stats.distance) / STATS_DISTANCE_SCALE; }
 
-/* El aviso del fin: cada frame reescribe el conteo con lo que falta; vencido el plazo, reinicia UNA sola vez. */
+/* Actualiza la cuenta regresiva y solicita el reinicio una sola vez. */
 void Game::UpdateGameOver() {
-  if (gameOver.restartRequested) { // ya pedí reiniciar: nada más
+  // Evita solicitar el reinicio más de una vez mientras cambia la escena.
+  if (gameOver.restartRequested) {
     return;
   }
 
-  const float remaining = std::max(0.f, GAME_OVER_RESTART_DELAY - gameOver.restartCooldown.GetElapsedTime()); // lo que falta (0 min = 0)
-  gameOver.restartText.setString(std::format("Reinicio en {:.1f} s", remaining)); // texto con vida: cuenta cada décima
-  gameOver.restartText.setOrigin(gameOver.restartText.getLocalBounds().getCenter()); // re-centrar: "2.9 s" y "2.0 s" miden distinto
+  // El tiempo mostrado nunca baja de cero y se vuelve a centrar porque el texto cambia de ancho.
+  const float remaining = std::max(0.f, GAME_OVER_RESTART_DELAY - gameOver.restartCooldown.GetElapsedTime());
+  gameOver.restartText.setString(std::format("Reinicio en {:.1f} s", remaining));
+  gameOver.restartText.setOrigin(gameOver.restartText.getLocalBounds().getCenter());
   if (gameOver.restartCooldown.IsOver()) {
-    gameOver.restartRequested = true; // bandera anti-doble-reinicio
+    gameOver.restartRequested = true;
     ctx.scenes.RestartCurrentScene();
   }
 }
 
-/* Se perdió: congela el mundo, configura los textos del fin, silencia al jugador y baja el volumen de la música. */
+/* Muestra la derrota, registra la distancia y reduce el volumen de la música. */
 void Game::EventGameOver() {
-  if (gameOver.active) { // solo puede ocurrir una vez
+  // Una colisión adicional en el mismo frame no debe reiniciar la cuenta regresiva.
+  if (gameOver.active) {
     return;
   }
   const int distance = GetDistance();
-  LOG_INFO("Game Over! Distance: {}", distance); // también al log (para depurar sin mirar la pantalla)
+  LOG_INFO("Game Over! Distance: {}", distance);
   gameOver.distanceText.setString(std::format("Distancia: {}", distance));
   gameOver.distanceText.setOrigin(gameOver.distanceText.getLocalBounds().getCenter());
   gameOver.active = true;
-  StopPlayerSounds(); // ni el salto ni la plancha alrededor; juego congelado
+  StopPlayerSounds(); // Detiene los efectos, pero la música continúa a menor volumen.
   if (music) {
-    music->setVolume(MUSIC_GAME_OVER_VOLUME); // la música baja (no muere): clima de derrota
+    audioGroup.SetSourceVolume(*music, MUSIC_GAME_OVER_VOLUME);
   }
-  gameOver.restartCooldown.Restart(); // el cuenta regresivo de vuelta a escena
-  UpdateGameOver(); // pinta el texto al instante (sin esperar al siguiente frame)
+  gameOver.restartCooldown.Restart();
+  UpdateGameOver();
 }
 
-/* El juego pausó o reanudó: efectos y música pausan con vos, y si había aviso de fin, su contador también espera. */
+/* Pausa o reanuda las fuentes de audio que pertenecen a la escena. */
 void Game::OnPause(bool paused) {
-  if (music) {
-    if (paused) {
-      music->pause();
-    } else if (music->getStatus() == sf::SoundSource::Status::Paused) {
-      // Reanuda únicamente una pista pausada: play() sobre una activa la reiniciaría.
-      music->play(); // retoma donde quedó
-    }
-  }
-  for (auto &sound : soundEffects) { // los efectos obedecen igual
-    if (!sound) { // este efecto nunca cargó: saltarlo
-      continue;
-    }
-    if (paused) {
-      sound->pause();
-    } else if (sound->getStatus() == sf::SoundSource::Status::Paused) {
-      sound->play();
-    }
-  }
-  if (!gameOver.active || gameOver.restartRequested) {
-    return; // en juego normal la pausa no toca nada del fin (no hay contador vivo aún)
-  }
-  if (paused) {
-    gameOver.restartCooldown.Stop(); // pausa: la cuenta del aviso TAMBIÉN espera
-  } else {
-    gameOver.restartCooldown.Start(); // retomar donde quedó
-  }
+  audioGroup.SetPaused(paused);
 }
 
-/* Se va la escena para siempre: apagar controles de audio para no dejar voces colgadas en el motor. */
+/* Limpia las partículas y detiene la música y los efectos al salir. */
 void Game::OnCleanup() {
+  ctx.animations.Remove(player.animator);
+  player.animator = INVALID_ANIMATION;
   ctx.particles.Clear();
-  StopPlayerSounds();
-  if (music) {
-    music->stop();
-  }
+  audioGroup.StopAll();
 }
 
-/* Toca un efecto del jugador; el de bucle (la plancha) si ya suena NO se reinicia: conserva su posición y sigue de corrido. */
+/* Reproduce un efecto y evita reiniciar los sonidos que están en bucle. */
 void Game::PlayPlayerSound(PlayerSound sound) {
   if (gameOver.active) {
-    return; // partida terminada: silencio
+    return;
   }
   auto &effect = soundEffects[static_cast<std::size_t>(sound)];
-  // Un bucle activo conserva su cursor para que el arrastre no se reinicie en cada cuadro.
-  if (effect && (!effect->isLooping() || effect->getStatus() != sf::SoundSource::Status::Playing)) {
-    effect->play(); // suena si es disparo único, o si es bucle pero estaba silenciado
+
+  if (effect) {
+    // Reinicia los efectos breves; los sonidos en bucle continúan sin interrupciones.
+    audioGroup.Play(*effect, !effect->isLooping());
   }
 }
 
-/* Apaga TODOS los efectos del jugador: sirve al morir, al reiniciar la ronda y al cerrar la escena. */
+/* Detiene los efectos del personaje sin detener la música. */
 void Game::StopPlayerSounds() {
-  for (auto &sound : soundEffects) {
-    if (sound) {
-      sound->stop();
-    }
-  }
+  audioGroup.Stop(AudioChannel::Effect);
 }
 
-/* Un paso reproduce el sonido del pie, comprime el personaje y levanta polvo. */
+/* Reproduce el sonido del pie, aplica el impacto y genera polvo. */
 void Game::EventPlayerFootstep(int contactFrame, bool emitSound) {
+  // Los cuadros de contacto alternan entre los sonidos de los dos pies.
   if (emitSound) {
     PlayPlayerSound(contactFrame == PLAYER_FOOTSTEP_FRAMES.front() ? PlayerSound::FootstepLeft : PlayerSound::FootstepRight);
-  } // fotito 0 = pie izquierdo; cualquier otro contacto = pie derecho: pasos alternados
+  }
   const auto bounds = player.shape.getGlobalBounds();
-  const sf::Vector2f contact(player.shape.getPosition().x + PLAYER_FOOTSTEP_OFFSET, // el punto exacto donde EL PIE sostiene
+  // El polvo nace cerca del pie, a la altura de la base de la caja.
+  const sf::Vector2f contact(player.shape.getPosition().x + PLAYER_FOOTSTEP_OFFSET,
                              bounds.position.y + bounds.size.y);
-  player.stepImpact = 1; // aplastamiento a máxima fuerza (decae linealmente en UpdateEffects)
-  EmitDust(contact, FOOTSTEP_DUST_COUNT, false); // polvo de pisada normal: chiquito y liviano
+  player.stepImpact = 1;
+  EmitDust(contact, FOOTSTEP_DUST_COUNT, false);
 }
 
-/* Crea motas de polvo con vida, tamaño y velocidad al azar; de plancha salen más gordas, rápidas y con más tirón. */
+/* Emite partículas con velocidad y tamaño adecuados para la pisada o el deslizamiento. */
 void Game::EmitDust(sf::Vector2f position, int count, bool sliding) {
-  const float speed = sliding ? SLIDE_DUST_SPEED : FOOTSTEP_DUST_SPEED; // velocidad lateral máxima: 100 vs 45
-  const float lift = sliding ? SLIDE_DUST_LIFT : FOOTSTEP_DUST_LIFT; // impulso hacia arriba: 48 vs 25
-  const int maxSize = sliding ? SLIDE_DUST_MAX_SIZE : FOOTSTEP_DUST_MAX_SIZE; // tamaño máximo: 4 vs 2px
-  for (int index = 0; index < count && ctx.particles.Count() < MAX_DUST_PARTICLES; ++index) {
-    const float lifetime = ctx.random.Float(DUST_MIN_LIFETIME, DUST_MAX_LIFETIME); // entre 0.22 y 0.48 s de vida
-    // pos = el punto de contacto con jitter antira; vel = hacia atrás (−speed..−speed/3) y algo de tirón arriba...
-    ctx.particles.Emit({position + sf::Vector2f(ctx.random.Float(-DUST_SPAWN_RADIUS, DUST_SPAWN_RADIUS), -DUST_SPAWN_HEIGHT),
-                        {ctx.random.Float(-speed, -speed / 3), ctx.random.Float(-lift, -DUST_MIN_LIFT)},
-                        {0, DUST_GRAVITY},
-                        lifetime, // vida restante
-                        lifetime, // vida TOTAL (para calcular cuánta opacidad queda)
-                        static_cast<float>(ctx.random.Int(1, maxSize)),
-                        sf::Color(DUST_COLOR.r, DUST_COLOR.g, DUST_COLOR.b, static_cast<std::uint8_t>(DUST_OPACITY))});
-  } // todas nacen un pelito ARRIBA del punto de contacto, con dispersión lateral
+  // La configuración de plancha aumenta el tamaño y el impulso respecto a una pisada.
+  if (count <= 0 || ctx.particles.Count() >= MAX_DUST_PARTICLES)
+    return;
+  const auto available = MAX_DUST_PARTICLES - ctx.particles.Count();
+  ctx.particles.EmitBurst(position, std::min(static_cast<std::size_t>(count), available), DUST_EMITTERS[sliding ? 1 : 0], ctx.random);
 }
 
-/* Nace un obstáculo en el borde derecho: de piso (una de 3 figuras al azar) o volador, con pasaje a ras de la plancha. */
+/* Crea un obstáculo terrestre o aéreo en el borde derecho. */
 void Game::EventObstacleSpawn() {
-  auto &obstacle = obstacles.emplace_back(); // uno al final del camino
+  auto &obstacle = obstacles.emplace_back();
 
-  const float height = ctx.random.Float(OBSTACLE_MIN_HEIGHT, OBSTACLE_MAX_HEIGHT); // altura aleatoria
-  obstacle.bounds.size = {OBSTACLE_WIDTH, height}; // solo datos: colisión geométrica pura (sin shapes SFML)
+  const float height = ctx.random.Float(OBSTACLE_MIN_HEIGHT, OBSTACLE_MAX_HEIGHT);
+  obstacle.bounds.size = {OBSTACLE_WIDTH, height};
 
   const bool airborne = ctx.random.Bool(OBSTACLE_AIR_PROBABILITY);
-  obstacle.spriteIndex = airborne ? OBSTACLE_AIR_SPRITE_INDEX : ctx.random.Int(0, OBSTACLE_GROUND_SPRITE_COUNT - 1); // figura ómiga del sheet
+  // La variante aérea deja un espacio inferior para que pase el personaje deslizándose.
+  obstacle.spriteIndex = airborne ? OBSTACLE_AIR_SPRITE_INDEX : ctx.random.Int(0, OBSTACLE_GROUND_SPRITE_COUNT - 1);
   obstacle.bounds.position = {gConfig.windowSize.x, ground.getPosition().y - height - (airborne ? PLAYER_SLIDE_SIZE.y : 0.f)};
-} // el volador flota a altura plancha: el hueco mide EXACTO lo que ocupa deslizándose
+}
 
-/* La decisión de vida o muerte: el PRIMER contacto del frame manda; aterrizar de arriba es válido, rozar de lado no. */
+/* Resuelve el primer contacto y distingue un aterrizaje de un choque. */
 void Game::HandleCollisionsPlayerObstacles() {
-  const auto currentBounds = player.shape.getGlobalBounds(); // posición del jugador DESPUÉS de este frame
-  const Obstacle *support = nullptr; // la caja sobre la que aterrizó (si hubo)
-  float landingTime = 2; // "2" = infinito dentro del frame: solo existe el rango 0..1
+  const auto currentBounds = player.shape.getGlobalBounds();
+  const Obstacle *support = nullptr;
+  // El valor 2 indica que todavía no hay contacto dentro del intervalo del frame, que va de 0 a 1.
+  float landingTime = 2;
   float crashTime = 2;
 
-  // Elige el primer contacto y distingue el aterrizaje de un golpe lateral.
+  // Compara todos los obstáculos para conservar el aterrizaje y el choque más tempranos.
   for (const auto &obstacle : obstacles) {
     const auto hit = SweepObstacle(player.previousBounds, currentBounds, obstacle.previousBounds,
-                                   obstacle.bounds); // comparar los cuatro rectángulos (antes/después por lado)
+                                   obstacle.bounds);
     if (!hit) {
-      continue; // con este obstáculo no hubo cruce en el frame
+      continue;
     }
 
-    if (hit->landing && hit->time < landingTime) { // aterrizaje: conservar el MÁS temprano de todos
+    if (hit->landing && hit->time < landingTime) {
       landingTime = hit->time;
       support = &obstacle;
     } else if (!hit->landing) {
-      crashTime = std::min(crashTime, hit->time); // choque: ídem, todas son malas y queda la primera
+      crashTime = std::min(crashTime, hit->time);
     }
   }
 
+  // Un choque lateral anterior al aterrizaje termina la partida.
   if (crashTime <= landingTime && crashTime <= 1) {
-    EventGameOver(); // el choque ganó (llegó antes, o ni apoyo hubo): derrotado
-    return; // NI ATERRIZAR en la misma caja ni nada más: fin
+    EventGameOver();
+    return;
   }
 
-  if (support && OverlapsHorizontally(currentBounds, support->bounds)) { // el aterrizaje ganó y lo sigo solapando +X
-    player.shape.setPosition({player.shape.getPosition().x, // el centro = cima del obstáculo − mitad de mí
+  // Solo conserva el apoyo si el jugador todavía está sobre el obstáculo.
+  if (support && OverlapsHorizontally(currentBounds, support->bounds)) {
+    // Coloca los pies sobre la parte superior y elimina la velocidad de caída.
+    player.shape.setPosition({player.shape.getPosition().x,
                               support->bounds.position.y - player.shape.getSize().y / 2});
-    player.velocity.y = 0; // truco de ascensor: la caí se detiene
-    player.grounded = true; // ¡piso nuevo! puede saltar desde la cima
+    player.velocity.y = 0;
+    player.grounded = true;
   }
 
-  const auto correctedBounds = player.shape.getGlobalBounds(); // posición DE POST-ATERRIZAJE (el snap la pudo mover)
+  // Comprueba que el aterrizaje no deje al jugador dentro de otro obstáculo.
+  const auto correctedBounds = player.shape.getGlobalBounds();
   for (const auto &obstacle : obstacles) {
-    if (&obstacle != support && correctedBounds.findIntersection(obstacle.bounds)) {
-      EventGameOver(); // mi apoyo es válido... pero no puedo quedar metido en OTRA caja al mismo tiempo
+    if (&obstacle != support && ctx.collisions.Intersect(correctedBounds, obstacle.bounds)) {
+      EventGameOver();
       return;
     }
   }
 }
 
-/* Dibuja las capas de atrás hacia adelante: fondos, obstáculos, efectos, jugador, HUD y (si hay) el aviso del fin encima de todo. */
+/* Dibuja el entorno, los obstáculos, las partículas, el jugador y los textos. */
 void Game::Render() const {
   RenderEnvironment();
 
@@ -604,101 +638,81 @@ void Game::Render() const {
     RenderObstacle(obstacle);
   }
 
-  ctx.particles.Render(ctx.renderer); // Dibuja el polvo detrás del personaje.
+  // Las partículas se dibujan antes del jugador para quedar detrás.
+  ctx.particles.Render(ctx.renderer);
   ctx.renderer.Draw(player.sprite);
 
-  ctx.renderer.Draw(stats.distanceText); // HUD último: nunca lo tapa nada de la pista
+  ctx.renderer.Draw(stats.distanceText);
   if (gameOver.active) {
-    RenderGameOver(); // capa SUPERIOR: el aviso tapa hasta al HUD
+    RenderGameOver();
   }
 }
 
-/* Orden de profundidad al dibujar: cielos lejanos, cuerpo de plataforma, edificios de primer plano y al final el borde del piso. */
+/* Dibuja las capas del escenario en orden de profundidad. */
 void Game::RenderEnvironment() const {
-  for (const auto &layer : backgroundLayers) { // 0.08× y 0.24×: lo lejano se dibuja PRIMERO (queda detrás)
+  // Las capas lejanas se dibujan primero para que los elementos cercanos queden delante.
+  for (const auto &layer : backgroundLayers) {
     ctx.renderer.Draw(layer.shape);
   }
-  ctx.renderer.Draw(platformFront); // el macizo
-  // Los edificios cercanos se superponen a la plataforma, que conserva toda su altura.
-  ctx.renderer.Draw(foregroundCity.shape); // delante del macizo: "la ciudad está a DERECHA del jugador"
-  ctx.renderer.Draw(ground); // el borde SÍ tapa la base de los edificios de primer plano
+  ctx.renderer.Draw(platformFront);
+
+  ctx.renderer.Draw(foregroundCity.shape);
+  ctx.renderer.Draw(ground);
 }
 
-/* El obstáculo se dibuja en 3 franjas: gorro y base tal cual el PNG (nítidas), y el cuerpo del medio se estira a la altura. */
+/* Dibuja las tapas y el cuerpo del obstáculo usando regiones de su textura. */
 void Game::RenderObstacle(const Obstacle &obstacle) const {
-  // Conserva tapas y base a tamaño nativo; adapta el cuerpo recortando el PNG, sin estirarlo.
-  const int cap = OBSTACLE_SPRITE_CAP_HEIGHT; // la franja de "gorro"/"base": 8px
-  const int width = static_cast<int>(OBSTACLE_WIDTH); // 30px de ancho
-  const int sourceX = obstacle.spriteIndex * OBSTACLE_SPRITE_FRAME_SIZE.x; // qué columna del sheet usar
+  // Conserva las tapas del sprite y recorta el cuerpo para adaptarlo a la altura del obstáculo.
+  const int cap = OBSTACLE_SPRITE_CAP_HEIGHT;
+  const int width = static_cast<int>(OBSTACLE_WIDTH);
+  const int sourceX = obstacle.spriteIndex * OBSTACLE_SPRITE_FRAME_SIZE.x;
   const auto position = obstacle.bounds.position;
-  const float top = std::round(position.y); // dónde empieza y dónde acaba en PANTALLA (íntegro)
+  const float top = std::round(position.y);
   const float bottom = std::round(position.y + obstacle.bounds.size.y);
-  const int bodyHeight = static_cast<int>(bottom - top) - cap * 2; // bodyHeight = alto − (gorro + base): el medio absorbe TODO el estiramiento
+  const int bodyHeight = static_cast<int>(bottom - top) - cap * 2;
   sf::Sprite part(*obstacleTexture);
-  const auto drawPart = [&](int sourceY, int height, float y) { // pequeña fábrica: (fila del PNG, alto del recorte, dónde pegarlo)
+  const auto drawPart = [&](int sourceY, int height, float y) {
     part.setTextureRect({{sourceX, sourceY}, {width, height}});
     part.setPosition({std::round(position.x), y});
     ctx.renderer.Draw(part);
   };
-  drawPart(0, cap, top); // TAPA: filas 0..8 del PNG, en la cima del obstáculo
-  drawPart(cap, bodyHeight, top + cap); // CUERPO: rellena todo el medio (puede estirarse muchísimo sin deformar extremos)
-  drawPart(OBSTACLE_SPRITE_FRAME_SIZE.y - cap, cap, bottom - cap); // BASE: las últimas 8 filas del PNG, en el pie
+  drawPart(0, cap, top);
+  drawPart(cap, bodyHeight, top + cap);
+  drawPart(OBSTACLE_SPRITE_FRAME_SIZE.y - cap, cap, bottom - cap);
 }
 
-/* El velo oscuro y los tres textos del fin, en orden de dibujo. */
+/* Dibuja la pantalla de derrota sobre la partida. */
 void Game::RenderGameOver() const {
-  ctx.renderer.Draw(gameOver.backdrop); // primero el velo: en carne oscurece detrás de los textos
-  ctx.renderer.Draw(gameOver.title); // GAME OVER
-  ctx.renderer.Draw(gameOver.distanceText); // Distancia: N
-  ctx.renderer.Draw(gameOver.restartText); // Reinicio en X.X s
+  ctx.renderer.Draw(gameOver.backdrop);
+  ctx.renderer.Draw(gameOver.title);
+  ctx.renderer.Draw(gameOver.distanceText);
+  ctx.renderer.Draw(gameOver.restartText);
 }
 
-/* ¿Cuándo chocan por primera vez DENTRO de este frame (t: 0..1), y el contacto fue de arriba (aterrizar) o de lado (crash)? */
+/* Detecta el primer contacto con un obstáculo y reconoce un apoyo sobre su superficie. */
 std::optional<ObstacleHit> Game::SweepObstacle(const sf::FloatRect &previousPlayer, const sf::FloatRect &currentPlayer,
-                                               const sf::FloatRect &previousObstacle, const sf::FloatRect &currentObstacle) {
+                                               const sf::FloatRect &previousObstacle, const sf::FloatRect &currentObstacle) const {
   const auto movement = (currentPlayer.position - previousPlayer.position) -
-                        (currentObstacle.position - previousObstacle.position); // movimiento RELATIVO: cómo se acercaron ENTRE SÍ
+                        (currentObstacle.position - previousObstacle.position);
+  // Se usa el movimiento relativo porque el jugador y el obstáculo pueden moverse a la vez.
 
-  // Acepta los pequeños errores de redondeo al permanecer sobre una plataforma.
+  // Una pequeña tolerancia evita perder el apoyo por errores de redondeo.
   const float previousFeet = previousPlayer.position.y + previousPlayer.size.y;
   if (movement.y >= 0 && std::abs(previousFeet - previousObstacle.position.y) <= PLAYER_COLLISION_TOLERANCE &&
       previousPlayer.position.x < previousObstacle.position.x + previousObstacle.size.x &&
       previousPlayer.position.x + previousPlayer.size.x > previousObstacle.position.x) {
-    return ObstacleHit{0, true}; // pies EXACTOS sobre la superficie (±tolerancia): apoyo válido en t=0, no error de float
-  }
-  if (previousPlayer.findIntersection(previousObstacle)) {
-    return ObstacleHit{0, false}; // ya estaba metido AL INICIAR el frame → choque inmediato
+    return ObstacleHit{0, true};
   }
 
-  const float infinity = std::numeric_limits<float>::infinity();
-  float entryX = -infinity, exitX = infinity; // los tiempos de cruce (t) por eje
-  float entryY = -infinity, exitY = infinity;
-  const auto sweepAxis = [](float playerMin, float playerSize, float obstacleMin, float obstacleSize,
-                            float delta, float &entry, float &exit) {
-    if (delta == 0) { // este eje no se movió: solo importa si de arranque estaban superpuestos
-      return playerMin < obstacleMin + obstacleSize && playerMin + playerSize > obstacleMin;
-    }
-    const float first = (obstacleMin - playerMin - playerSize) / delta; // t en que la cara TRASERA llega
-    const float last = (obstacleMin + obstacleSize - playerMin) / delta; // t en que la cara DELANTERA sale
-    entry = std::min(first, last); // podría estar "al revés" según el signo: ordenar
-    exit = std::max(first, last);
-    return true;
-  };
-  if (!sweepAxis(previousPlayer.position.x, previousPlayer.size.x, previousObstacle.position.x,
-                 previousObstacle.size.x, movement.x, entryX, exitX) ||
-      !sweepAxis(previousPlayer.position.y, previousPlayer.size.y, previousObstacle.position.y,
-                 previousObstacle.size.y, movement.y, entryY, exitY)) {
-    return std::nullopt; // algún eje jamás se toca: incluso viajando, no hay contacto
+  // El cálculo general devuelve el momento y la normal; Runner decide si el contacto es un aterrizaje.
+  const auto hit = ctx.collisions.Sweep(previousPlayer, currentPlayer, previousObstacle, currentObstacle);
+  if (!hit) {
+    return std::nullopt;
   }
-  const float entry = std::max(entryX, entryY); // el contacto INICIA cuando AMBOS ejes solapan...
-  const float exit = std::min(exitX, exitY); // ...y termina cuando el PRIMERO se despega
-  if (entry < 0 || entry > 1 || entry >= exit || exit <= 0) {
-    return std::nullopt; // el cruce quedó fuera de este frame (antes o después) o la ventana contacta no existe
-  }
-  return ObstacleHit{entry, movement.y > 0 && entryY >= entryX}; // ¿descendiendo y el eje Y cerró PRIMERO? → aterrizó
+  return ObstacleHit{hit->time, !hit->initialOverlap && hit->normal.y < 0};
 }
 
-/* ¿Los dos cuerpos comparten el mismo tramo en X? Sirve para saber si un apoyo sigue bajo los pies. */
+/* Comprueba si dos cajas comparten espacio horizontal. */
 bool Game::OverlapsHorizontally(const sf::FloatRect &player, const sf::FloatRect &obstacle) {
   return player.position.x < obstacle.position.x + obstacle.size.x &&
          player.position.x + player.size.x > obstacle.position.x;

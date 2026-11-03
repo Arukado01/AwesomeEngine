@@ -12,8 +12,9 @@ namespace Bounce {
     Cooldown ballSpawnCooldown; // Temporizador: cada X segundos aparece una pelota
     Stats stats; // Puntaje, récord, vidas y sus textos
     sf::RectangleShape background; // Fondo con textura, cubre toda la ventana
-    sf::Sound bounceSound; // Efecto al rebotar en la paleta
-    sf::Music music; // Música de fondo
+    AudioGroup audioGroup;
+    std::shared_ptr<sf::Sound> bounceSound; // Efecto al rebotar en la paleta
+    std::shared_ptr<sf::Music> music; // Música de fondo
 
   public:
     Game(EngineContext &);
