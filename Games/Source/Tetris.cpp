@@ -289,27 +289,36 @@ Piece Game::GenerateRandomPiece() const {
 
 /* Devuelve el bloque `index` de la pieza rotado `rotation` cuartos de vuelta sobre su pivote. */
 sf::Vector2i Game::GetPointRotated(int type, int index, int rotation) const {
-  sf::Vector2f point(PIECE_SHAPES[type][index]);
-  sf::Vector2f pivot = PIECE_PIVOTS[type];
-  sf::Vector2f origin = point - pivot;
+
+  sf::Vector2f point(PIECE_SHAPES[type][index]); // Coordenadas originales del bloque, tal como están definidas en PIECE_SHAPES.
+  sf::Vector2f pivot = PIECE_PIVOTS[type]; // Eje de giro de la pieza; con decimales (.5) porque piezas como I y O giran entre celdas.
+  sf::Vector2f origin = point - pivot; // Vector desde el pivote hasta el bloque: es el vector que se va a girar.
 
   sf::Vector2f rotated;
   switch (rotation) {
   case 0:
+    // Orientación original: sin giro.
     rotated = origin;
     break;
   case 1:
+    // 90° en sentido horario: (x, y) -> (-y, x). Con el eje Y apuntando hacia
+    // abajo, un bloque situado a la derecha del pivote pasa a quedar debajo.
     rotated = {-origin.y, origin.x};
     break;
   case 2:
+    // 180°: (x, y) -> (-x, -y). El bloque queda en el lado opuesto al pivote.
     rotated = {-origin.x, -origin.y};
     break;
   case 3:
+    // 270° en sentido horario (90° antihorario): (x, y) -> (y, -x).
     rotated = {origin.y, -origin.x};
     break;
   }
+  // Se deshace el traslado inicial para volver al espacio local de la pieza.
   rotated += pivot;
 
+  // El pivote con decimales (ej. 1.5) deja el bloque entre dos celdas; el
+  // redondeo lo ajusta a la celda entera más cercana de la rejilla.
   return {int(std::round(rotated.x)), int(std::round(rotated.y))};
 }
 
