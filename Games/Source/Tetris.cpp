@@ -2,6 +2,7 @@
 
 using namespace Tetris;
 
+/* Inicializa la escena: temporizadores de acción, interfaz de Game Over y grupo de audio. */
 Game::Game(EngineContext &context) : Scene(context),
                                      actionCooldown(ACTION_COOLDOWN_DURATION),
                                      fallCooldown(PIECE_FALL_COOLDOWN_DURATION),
@@ -26,12 +27,14 @@ Game::Game(EngineContext &context) : Scene(context),
   gameOverScore.setFillColor(SCORE_COLOR);
   gameOverScore.setPosition({gConfig.windowSize.x / 2.f, gConfig.windowSize.y / 2.f + 25.f});
 
+  // Música de fondo en bucle y sonido al completar líneas.
   if (auto track = ctx.resources.FetchMusic(MUSIC_FILENAME)) {
     music = audioGroup.AddMusic(std::move(*track), MUSIC_VOLUME, true);
   }
   lineClearSound = audioGroup.AddSound(ctx.resources.AcquireSound(LINE_CLEAR_SOUND_FILENAME), LINE_CLEAR_SOUND_VOLUME);
 }
 
+/* Da posición, tamaño y color a los textos de puntuación y récord. */
 void Game::InitStats() {
   stats.scoreText.setPosition({10, 10});
   stats.scoreText.setCharacterSize(20);
@@ -41,6 +44,7 @@ void Game::InitStats() {
   stats.highScoreText.setFillColor(SCORE_COLOR);
 }
 
+/* Reinicia la partida: estado, inputs, tablero, piezas y estadísticas. */
 void Game::Start() {
   audioGroup.StopAll();
   gameOverActive = false;
@@ -74,6 +78,7 @@ void Game::OnCleanup() {
   audioGroup.StopAll();
 }
 
+/* Asigna cada acción a teclas (flechas y WASD) y a ejes y botones del mando. */
 void Game::BindInputs() {
   ctx.input.Bind(MoveRight, Input::Keyboard{sf::Keyboard::Scan::Right});
   ctx.input.Bind(MoveRight, Input::Keyboard{sf::Keyboard::Scan::D});
@@ -92,14 +97,17 @@ void Game::BindInputs() {
   ctx.input.Bind(SoftDrop, Input::Axis{sf::Joystick::Axis::Y, 0.5f});
 }
 
+/* Vacía el tablero para empezar de cero. */
 void Game::StartGrid() {
   board = {};
 }
 
+/* Genera la primera pieza en cola de espera. */
 void Game::StartNextPiece() {
   next = GenerateRandomPiece();
 }
 
+/* Pone la puntuación a cero y recupera el récord persistido. */
 void Game::StartStats() {
   stats.score = 0;
   stats.scoreText.setString("Score: 0");
@@ -108,6 +116,7 @@ void Game::StartStats() {
   stats.highScoreText.setString("High Score: " + std::to_string(stats.highScore));
 }
 
+/* Caída instantánea de la pieza con la barra espaciadora o el botón sur del mando. */
 void Game::OnEvent(const sf::Event &event) {
   // No permite mover ni dejar caer piezas durante la pantalla de derrota.
   if (gameOverActive) {
@@ -126,6 +135,7 @@ void Game::OnEvent(const sf::Event &event) {
   }
 }
 
+/* Lógica por frame: rotar, mover a los lados y dejar caer la pieza con sus temporizadores. */
 void Game::Update() {
   if (gameOverActive) {
     // El reloj del juego se detiene si la ventana pierde el foco o se pausa.
@@ -148,6 +158,7 @@ void Game::Update() {
   }
 
   if (ctx.input.Pressed(SoftDrop) && softDropCooldown.IsOver()) {
+    // La caída suave reinicia también la caída natural para no contar un paso extra.
     EventPieceFall();
     softDropCooldown.Restart();
     fallCooldown.Restart();
@@ -157,11 +168,13 @@ void Game::Update() {
   }
 }
 
+/* La pieza en espera pasa a ser la pieza actual y se genera otra en espera. */
 void Game::EventPieceSpawn() {
   current = next;
   next = GenerateRandomPiece();
 }
 
+/* Gira la pieza 90° solo si la nueva orientación cabe en el tablero. */
 void Game::EventPieceRotate() {
   Piece rotated = current;
   rotated.rotation = (rotated.rotation + 1) % 4;
@@ -171,6 +184,7 @@ void Game::EventPieceRotate() {
   }
 }
 
+/* Desplaza la pieza según el desplazamiento dado si la posición resultante es válida. */
 void Game::EventPieceMove(sf::Vector2i offset) {
   Piece moved = current;
   moved.position += offset;
@@ -180,6 +194,7 @@ void Game::EventPieceMove(sf::Vector2i offset) {
   }
 }
 
+/* Baja la pieza una fila; si no puede, se fusiona con el tablero. */
 void Game::EventPieceFall() {
   Piece moved = current;
   moved.position.y++;
@@ -191,15 +206,18 @@ void Game::EventPieceFall() {
   }
 }
 
+/* Deja caer la pieza hasta el fondo de golpe y la fusiona de inmediato. */
 void Game::EventPieceDropHard() {
   while (IsPieceValid(current)) {
     current.position.y++;
   }
+  // Retrocede una fila para que la pieza quede apoyada y no hundida en el fondo.
   current.position.y--;
 
   EventPieceMerge();
 }
 
+/* Fija la pieza en el tablero, limpia líneas completas y saca la siguiente pieza. */
 void Game::EventPieceMerge() {
   for (int i = 0; i < PIECE_BLOCK_COUNT; i++) {
     sf::Vector2i block = GetPointRotated(current.type, i, current.rotation) + current.position;
@@ -213,6 +231,7 @@ void Game::EventPieceMerge() {
   EventLinesClear();
   EventPieceSpawn();
 
+  // Si la pieza recién sacada no cabe, el tablero está lleno: fin de la partida.
   if (!IsPieceValid(current)) {
     LOG_INFO("You Lose!");
     // Conserva la puntuación final en pantalla antes de reiniciar la escena.
@@ -223,11 +242,13 @@ void Game::EventPieceMerge() {
   }
 }
 
+/* Compacta el tablero bajando las filas incompletas hacia el fondo y suma puntos. */
 void Game::EventLinesClear() {
   Board newBoard = {};
   int cleared = 0;
   int destinationY = GRID_HEIGHT - 1;
 
+  // Recorre de abajo arriba: las filas completas se descartan y las demás se apilan al fondo.
   for (int y = GRID_HEIGHT - 1; y >= 0; y--) {
     if (std::ranges::all_of(board[y], [](auto color) { return color.has_value(); })) {
       cleared++;
@@ -254,6 +275,7 @@ void Game::EventLinesClear() {
   }
 }
 
+/* Crea una pieza de tipo aleatorio, sin rotar y centrada en la fila superior. */
 Piece Game::GenerateRandomPiece() const {
   Piece piece;
 
@@ -265,6 +287,7 @@ Piece Game::GenerateRandomPiece() const {
   return piece;
 }
 
+/* Devuelve el bloque `index` de la pieza rotado `rotation` cuartos de vuelta sobre su pivote. */
 sf::Vector2i Game::GetPointRotated(int type, int index, int rotation) const {
   sf::Vector2f point(PIECE_SHAPES[type][index]);
   sf::Vector2f pivot = PIECE_PIVOTS[type];
@@ -290,11 +313,13 @@ sf::Vector2i Game::GetPointRotated(int type, int index, int rotation) const {
   return {int(std::round(rotated.x)), int(std::round(rotated.y))};
 }
 
+/* Esquina superior izquierda del tablero, centrado en la ventana. */
 sf::Vector2f Game::GetBoardOrigin() const {
   return {(gConfig.windowSize.x - GRID_WIDTH * BLOCK_SIZE) / 2,
           (gConfig.windowSize.y - GRID_HEIGHT * BLOCK_SIZE) / 2};
 }
 
+/* Indica si la pieza está dentro del tablero y sin solapar bloques ya fijados. */
 bool Game::IsPieceValid(const Piece &piece) const {
   for (int i = 0; i < PIECE_BLOCK_COUNT; i++) {
     sf::Vector2i block = GetPointRotated(piece.type, i, piece.rotation) + piece.position;
@@ -309,6 +334,7 @@ bool Game::IsPieceValid(const Piece &piece) const {
   return true;
 }
 
+/* Dibuja fondo, tablero, pieza actual, pieza siguiente y textos de interfaz. */
 void Game::Render() const {
   sf::RectangleShape background(sf::Vector2f(gConfig.windowSize));
   background.setFillColor(BACKGROUND_COLOR);
@@ -327,6 +353,7 @@ void Game::Render() const {
   }
 }
 
+/* Dibuja celda por celda: bloques fijos con su color y huecos vacíos con el color del tablero. */
 void Game::RenderBoard() const {
   sf::Vector2f origin = GetBoardOrigin();
 
@@ -344,6 +371,7 @@ void Game::RenderBoard() const {
   }
 }
 
+/* Dibuja los bloques de una pieza; con `world` se suma su posición real dentro del tablero. */
 void Game::RenderPiece(const Piece &piece, sf::Vector2f origin, bool world) const {
   sf::RectangleShape shape({BLOCK_SIZE, BLOCK_SIZE});
   shape.setFillColor(piece.color);

@@ -24,13 +24,13 @@ namespace Tetris {
   const sf::Color SCORE_COLOR(171, 180, 201);
 
   const std::array<sf::Color, PIECE_TYPE_COUNT> PIECE_COLORS{{
-      {29, 123, 137},
-      {153, 124, 38},
-      {112, 65, 146},
-      {43, 119, 84},
-      {155, 56, 73},
-      {47, 85, 150},
-      {162, 91, 38},
+      {29, 123, 137}, // I
+      {153, 124, 38}, // O
+      {112, 65, 146}, // T
+      {43, 119, 84}, // S
+      {155, 56, 73}, // Z
+      {47, 85, 150}, // J
+      {162, 91, 38}, // L
   }};
 
   const std::string MUSIC_FILENAME = "TetrisMusic.ogg";
