@@ -7,6 +7,7 @@
 #include "MineSweeper.h"
 #include "Runner.h"
 #include "Tetris.h"
+#include "Pong.h"
 
 namespace SceneFactory {
   Scenes CreateScenes(EngineContext &context) {
@@ -19,6 +20,7 @@ namespace SceneFactory {
     scenes.emplace("MineSweeper", std::make_unique<MineSweeper::Game>(context));
     scenes.emplace("Runner", std::make_unique<Runner::Game>(context));
     scenes.emplace("Tetris", std::make_unique<Tetris::Game>(context));
+    scenes.emplace("Pong", std::make_unique<Pong::Game>(context));
 
     return scenes;
   }
