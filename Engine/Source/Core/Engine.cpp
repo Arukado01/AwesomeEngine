@@ -26,7 +26,7 @@ Engine::Engine() : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
   LOG_INFO("Window created");
 
   context_.audio.SetGlobalVolume(gConfig.globalVolume); // Aplica el volumen global de audio definido en la configuración
-  context_.scenes.ChangeScene("Pong"); // Elegir Escena inicial
+  context_.scenes.ChangeScene("Breakout"); // Elegir Escena inicial
 }
 
 /** Indica si el bucle principal debe seguir ejecutándose */
