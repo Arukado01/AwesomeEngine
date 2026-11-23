@@ -10,21 +10,29 @@ namespace Pong {
     Player2MoveDown,
   };
 
+  /* El modo decide quién controla la paleta derecha. */
+  enum class Mode { VersusAI,
+                    VersusPlayer };
+
+  /* La pantalla decide qué acciones acepta el juego y qué dibuja. */
+  enum class Screen { Menu,
+                      Playing,
+                      GameOver };
+
   struct Stats {
-    int score;
-    sf::Text scoreText{GetDefaultFont()};
+    int lives = 0;
+    sf::Text livesText{GetDefaultFont()};
   };
 
   struct Player {
-    int joystickId;
+    unsigned int joystickId = 0;
     sf::RectangleShape shape;
-    float speed;
     Stats stats;
   };
 
   struct Ball {
     sf::CircleShape shape;
     sf::Vector2f direction;
-    float speed;
+    float speed = BALL_SPEED;
   };
 } // namespace Pong
