@@ -1,17 +1,19 @@
 #pragma once
-#include <SFML/Graphics/CircleShape.hpp>
+#include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/View.hpp>
+
+class ResourceManager;
 
 class CursorManager {
 private:
   sf::RenderWindow &window_;
-  sf::CircleShape shape_;
+  sf::RectangleShape shape_;
   float speed_;
   bool visible_;
 
 public:
-  CursorManager(sf::RenderWindow &window);
+  CursorManager(sf::RenderWindow &window, ResourceManager &resources);
 
   void SetSpeed(float speed);
   float GetSpeed() const;

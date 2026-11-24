@@ -36,5 +36,5 @@ struct EngineContext {
   SceneManager scenes;
 
   EngineContext(sf::RenderWindow &window)
-      : screenshot(window), cursor(window), gui(window) {}
+      : screenshot(window), cursor(window, resources), gui(window) {}
 };

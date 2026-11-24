@@ -6,14 +6,26 @@
 #include <algorithm>
 
 #include "Core/EngineConfig.h"
+#include "Managers/ResourceManager.h"
 
-CursorManager::CursorManager(sf::RenderWindow &window)
-    : window_(window), shape_(gConfig.cursorRadius),
-      speed_(gConfig.cursorSpeed), visible_(true) {
-  shape_.setFillColor(gConfig.cursorColor);
-  shape_.setOrigin(shape_.getGeometricCenter());
+/* Usa el logo del motor como cursor y coloca el punto de clic en la punta de la A. */
+CursorManager::CursorManager(sf::RenderWindow &window, ResourceManager &resources)
+    : window_(window), speed_(gConfig.cursorSpeed), visible_(true) {
+  if (auto *texture = resources.FetchTexture("Icon.png")) {
+    const sf::Vector2f imageSize(texture->getSize());
+    const float longestSide = std::max(imageSize.x, imageSize.y);
+    if (longestSide > 0.f) {
+      const auto cursorSize = imageSize * (gConfig.cursorSize / longestSide);
+      shape_.setTexture(texture);
+      shape_.setSize(cursorSize);
+      // El centro del borde superior corresponde a la punta visible de la A.
+      shape_.setOrigin({cursorSize.x / 2.f, 0.f});
+      // Gira alrededor de la punta para que el borde izquierdo quede vertical.
+      shape_.setRotation(sf::degrees(-29.5f));
+    }
+  }
   shape_.setPosition(gConfig.windowSize / 2.f);
-};
+}
 
 void CursorManager::Update(float deltaTime) {
   const sf::Vector2f joystickDirection(
