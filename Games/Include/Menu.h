@@ -24,7 +24,7 @@ namespace Menu {
 
   private:
     void InitButtons();
-    void InitButton(Button &button, sf::FloatRect bounds, std::string name);
+    void InitButton(Button &button, sf::FloatRect bounds, const GameEntry &game);
     void InitHeader();
     void InitControls();
     void InitMusic();

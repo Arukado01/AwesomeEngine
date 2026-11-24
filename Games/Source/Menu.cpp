@@ -11,9 +11,10 @@ Game::Game(EngineContext &context) : Scene(context),
 }
 
 /* Distribuye los botones en una grilla dentro de la zona media de la ventana,
-   dejando arriba el título y abajo el pie con la ayuda. */
+   dejando arriba el título y abajo el pie con la ayuda. Los juegos vienen de
+   Content/Config.json (gConfig.games). */
 void Game::InitButtons() {
-  int count = (int)BUTTONS_NAMES.size();
+  int count = (int)gConfig.games.size();
 
   int cols = std::min(BUTTONS_PER_ROW, count);
   int rows = (count + cols - 1) / cols;
@@ -39,19 +40,21 @@ void Game::InitButtons() {
 
     auto &button = buttons.emplace_back();
 
-    InitButton(button, {position, size}, BUTTONS_NAMES[i]);
+    InitButton(button, {position, size}, gConfig.games[i]);
   }
 }
 
 /* Da a un botón su textura, color, tamaño y etiqueta centrada. */
-void Game::InitButton(Button &button, sf::FloatRect bounds, std::string name) {
+void Game::InitButton(Button &button, sf::FloatRect bounds, const GameEntry &game) {
   button.shape.setTexture(ctx.resources.FetchTexture(BUTTON_TEXTURE_FILENAME));
   button.shape.setFillColor(BUTTON_COLOR);
   button.shape.setSize(bounds.size);
   button.shape.setOrigin(button.shape.getGeometricCenter());
   button.shape.setPosition(bounds.position);
 
-  button.name = name;
+  button.game = game;
+
+  std::string name = game.title;
   std::ranges::replace(name, ' ', '\n'); // Nombres largos parten en dos líneas
 
   button.text.setFillColor(BUTTON_TEXT_COLOR);
@@ -192,7 +195,7 @@ void Game::UpdateButton(Button &button) {
 void Game::EventSceneLoad() {
   for (const auto &button : buttons) {
     if (IsButtonHovered(button)) {
-      ctx.scenes.ChangeScene(button.name);
+      ctx.scenes.ChangeScene(button.game.name);
       return;
     }
   }
@@ -210,15 +213,15 @@ void Game::EventControlsShow() {
     if (IsButtonHovered(buttons[i])) {
       controls.current = (int)i;
 
-      const auto &info = CONTROLS_TEXTS[i];
+      const GameEntry &game = buttons[i].game;
 
-      controls.title.setString(info.title);
+      controls.title.setString(game.title);
       controls.title.setOrigin(controls.title.getLocalBounds().getCenter());
       controls.title.setPosition({controls.panel.getPosition().x,
                                   controls.panel.getPosition().y -
                                       controls.panel.getSize().y / 2.f + 60.f});
 
-      controls.body.setString(info.body);
+      controls.body.setString(game.controls);
       controls.body.setOrigin(controls.body.getLocalBounds().getCenter());
       controls.body.setPosition(controls.panel.getPosition());
 

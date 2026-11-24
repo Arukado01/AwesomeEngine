@@ -8,5 +8,47 @@
     "backgroundColor": [100, 100, 100],
     "cursorSize": 21,
     "cursorSpeed": 800,
-    "joystickDeadzone": 0.1
+    "joystickDeadzone": 0.1,
+    "games": [
+        {
+            "name": "Clicker",
+            "title": "Clicker",
+            "controls": "Hit: Left Click / South"
+        },
+        {
+            "name": "MemoryCard",
+            "title": "Memory Card",
+            "controls": "Flip: Any Click / Any Button"
+        },
+        {
+            "name": "TicTacToe",
+            "title": "Tic-Tac-Toe",
+            "controls": "Mode: 1 = vs AI / 2 = PvP\nPlay: Any Click / Any Button"
+        },
+        {
+            "name": "MineSweeper",
+            "title": "Minesweeper",
+            "controls": "Reveal: Left Click / South\nFlag: Right Click / West"
+        },
+        {
+            "name": "Runner",
+            "title": "Runner",
+            "controls": "Jump: W / South\nCrouch: S / West\nFast Fall: S / Stick Y"
+        },
+        {
+            "name": "Tetris",
+            "title": "Tetris",
+            "controls": "Move: Arrows / A / D / Stick X\nRotate: Up / W / North\nSoft Drop: Down / S / Stick Y\nHard Drop: Space / South"
+        },
+        {
+            "name": "Pong",
+            "title": "Pong",
+            "controls": "Player 1: W / S / Left Stick Y\nPlayer 2: Arrows / Right Stick Y\nMenu: Up / Down + Enter"
+        },
+        {
+            "name": "Breakout",
+            "title": "Breakout",
+            "controls": "Move: A / D / Stick X\nRestart: Enter"
+        }
+    ]
 }

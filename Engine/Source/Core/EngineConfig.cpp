@@ -22,4 +22,11 @@ EngineConfig::EngineConfig() {
   cursorSize = json.value("cursorSize", 24.f);
   cursorSpeed = json["cursorSpeed"];
   joystickDeadzone = json["joystickDeadzone"];
+
+  // Juegos del menú principal: sin la lista, el menú queda vacío pero el motor arranca.
+  if (json.contains("games")) {
+    for (const auto &entry : json["games"]) {
+      games.push_back({entry["name"], entry["title"], entry["controls"]});
+    }
+  }
 }

@@ -3,17 +3,6 @@
 #include "Scene/Scene.h"
 
 namespace Menu {
-  /* Entrada de controles: nombre del juego y sus acciones reales. */
-  struct ControlInfo {
-    std::string_view title;
-    std::string_view body;
-  };
-
-  const std::array BUTTONS_NAMES =
-      {
-          "Clicker", "MemoryCard", "TicTacToe", "MineSweeper",
-          "Runner", "Tetris", "Pong", "Breakout"};
-
   const int BUTTONS_PER_ROW = 2;
   const float BUTTONS_PADDING_RATIO = 0.5f;
 
@@ -22,44 +11,6 @@ namespace Menu {
   const sf::Color BUTTON_COLOR(150, 150, 225);
   const sf::Color BUTTON_HOVERED_COLOR(sf::Color::Cyan);
   const sf::Color BUTTON_TEXT_COLOR(sf::Color::Black);
-
-  /* Controles reales de cada juego, en el mismo orden que BUTTONS_NAMES. */
-  const std::array CONTROLS_TEXTS =
-      {
-          ControlInfo{"Clicker",
-                      "Hit: Left Click / South"},
-
-          ControlInfo{"Memory Card",
-                      "Flip: Any Click / Any Button"},
-
-          ControlInfo{"Tic-Tac-Toe",
-                      "Mode: 1 = vs AI / 2 = PvP\n"
-                      "Play: Any Click / Any Button"},
-
-          ControlInfo{"Minesweeper",
-                      "Reveal: Left Click / South\n"
-                      "Flag: Right Click / West"},
-
-          ControlInfo{"Runner",
-                      "Jump: W / South\n"
-                      "Crouch: S / West\n"
-                      "Fast Fall: S / Stick Y"},
-
-          ControlInfo{"Tetris",
-                      "Move: Arrows / A / D / Stick X\n"
-                      "Rotate: Up / W / North\n"
-                      "Soft Drop: Down / S / Stick Y\n"
-                      "Hard Drop: Space / South"},
-
-          ControlInfo{"Pong",
-                      "Player 1: W / S / Left Stick Y\n"
-                      "Player 2: Arrows / Right Stick Y\n"
-                      "Menu: Up / Down + Enter"},
-
-          ControlInfo{"Breakout",
-                      "Move: A / D / Stick X\n"
-                      "Restart: Enter"},
-  };
 
   // Pantalla de controles: panel central con borde sobre un fondo oscurecido
   const sf::Color CONTROLS_BACKDROP_COLOR(0, 0, 0, 200);

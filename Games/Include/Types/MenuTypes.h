@@ -5,7 +5,7 @@
 namespace Menu {
   struct Button {
     sf::RectangleShape shape;
-    std::string name;
+    GameEntry game; // datos del juego: escena, título y controles (viene de Config.json)
     sf::Text text{GetDefaultFont()};
   };
 
