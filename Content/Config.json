@@ -6,7 +6,7 @@
     "maximumDeltaTime": 0.03,
     "globalVolume": 100,
     "backgroundColor": [100, 100, 100],
-    "cursorSize": 24,
+    "cursorSize": 21,
     "cursorSpeed": 800,
     "joystickDeadzone": 0.1
 }
