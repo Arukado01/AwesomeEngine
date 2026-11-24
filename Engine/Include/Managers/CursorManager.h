@@ -4,16 +4,19 @@
 #include <SFML/Graphics/View.hpp>
 
 class ResourceManager;
+class RenderManager;
 
 class CursorManager {
 private:
   sf::RenderWindow &window_;
+  RenderManager &renderer_; // Dueño de la vista letterbox compartida con el render
   sf::RectangleShape shape_;
   float speed_;
   bool visible_;
 
 public:
-  CursorManager(sf::RenderWindow &window, ResourceManager &resources);
+  CursorManager(sf::RenderWindow &window, ResourceManager &resources,
+                RenderManager &renderer);
 
   void SetSpeed(float speed);
   float GetSpeed() const;

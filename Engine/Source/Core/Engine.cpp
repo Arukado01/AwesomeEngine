@@ -12,12 +12,8 @@ Engine::Engine() : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
                    overlay_(context_.gui),
                    cursorWasVisible_(true) {
 
-  /**  Configuración inicial de la ventana */
-  window_.setIcon(sf::Image("Content/Textures/Icon.png"));
-  window_.setMinimumSize(window_.getSize() / 2u); // Mitad del tamaño actual como mínimo
-  window_.setFramerateLimit(gConfig.frameRateLimit); // Evita saturar CPU/GPU con cuadros que la pantalla no puede mostrar
-  window_.setKeyRepeatEnabled(false); // Evita repetición de teclas al mantener presionadas
-  window_.setMouseCursorVisible(false); // Oculta el cursor del sistema (AwesomeEngine dibuja el suyo)
+  /** Configuración inicial de la ventana */
+  ApplyWindowSettings();
 
   if (gConfig.disableSfmlLogs) { // Si disableSfmlLogs es true, silencia los logs propios de SFML (redirige el stream de errores a null para usar el sistema propio de logs)
     sf::err().rdbuf(nullptr);
@@ -27,6 +23,20 @@ Engine::Engine() : window_(sf::VideoMode(sf::Vector2u(gConfig.windowSize)),
 
   context_.audio.SetGlobalVolume(gConfig.globalVolume); // Aplica el volumen global de audio definido en la configuración
   context_.scenes.ChangeScene("Menu"); // Elegir Escena inicial
+}
+
+/** Aplica los ajustes de ventana que se pierden al recrearla (pantalla completa, resolución, etc.) */
+void Engine::ApplyWindowSettings() {
+  window_.setIcon(sf::Image("Content/Textures/Icon.png"));
+  window_.setFramerateLimit(gConfig.frameRateLimit); // Evita saturar CPU/GPU con cuadros que la pantalla no puede mostrar
+  window_.setKeyRepeatEnabled(false); // Evita repetición de teclas al mantener presionadas
+  window_.setMouseCursorVisible(false); // Oculta el cursor del sistema (AwesomeEngine dibuja el suyo)
+
+  if (fullscreen_) { // En pantalla completa el tamaño es el del monitor: sin límites
+    window_.setMinimumSize(std::nullopt);
+  } else {
+    window_.setMinimumSize(sf::Vector2u(gConfig.windowSize) / 2u); // Mitad del tamaño de diseño como mínimo
+  }
 }
 
 /** Indica si el bucle principal debe seguir ejecutándose */
@@ -77,13 +87,28 @@ void Engine::Update() {
 void Engine::Render() {
   window_.clear(); // Limpia el frame anterior
 
-  context_.renderer.BeginDrawing(); // Renderiza la escena a un buffer intermedio ->
+  context_.renderer.Resize(window_.getSize()); // Sincroniza el render con el tamaño de la ventana
+
+  context_.renderer.BeginDrawing(); // Renderiza la escena a un buffer del tamaño de la ventana ->
   currentScene_->Render();
-  window_.draw(sf::Sprite(context_.renderer.FinishDrawing())); // -> y luego lo dibuja en la ventana
 
-  context_.gui.Render(); // Encima de la escena se dibuja la GUI
-  context_.cursor.Render(); // y también el cursor personalizado
+  // Vista 1:1 con la ventana actual: la vista por defecto conserva el tamaño de
+  // creación y deformaría el frame si la ventana cambió de tamaño.
+  const sf::View windowView(sf::FloatRect({0.f, 0.f},
+                                          sf::Vector2f(window_.getSize())));
 
+  window_.setView(windowView);
+  window_.draw(sf::Sprite(context_.renderer.FinishDrawing())); // -> y lo dibuja 1:1 (el fondo cubre todo, el contenido conserva el aspecto)
+
+  const sf::View fitView = context_.renderer.GetFitView(window_.getSize());
+
+  context_.gui.UpdateView(fitView); // La GUI se alinea al área de contenido (mismo viewport y coordenadas de diseño)
+  context_.gui.Render(); // Encima de la escena se dibuja la GUI (TGUI guarda y restaura la vista por su cuenta)
+
+  window_.setView(fitView); // El cursor personalizado comparte el área de contenido de la escena
+  context_.cursor.Render();
+
+  window_.setView(windowView); // Restaura la vista 1:1 para el siguiente frame
   window_.display(); // Muestra el frame terminado
 }
 
@@ -215,4 +240,28 @@ void Engine::EventOverlaySelect(OverlaySelection selection) {
   default:
     break;
   }
+}
+
+/** Evento: alternar pantalla completa (Control + Enter) */
+void Engine::EventFullscreenToggle() {
+  fullscreen_ = !fullscreen_;
+
+  if (fullscreen_) {
+    lastWindowedSize_ = window_.getSize(); // Recuerda el tamaño para restaurarlo al volver
+    // Pantalla completa con el modo actual del escritorio
+    window_.create(sf::VideoMode::getDesktopMode(), gConfig.windowTitle, sf::State::Fullscreen);
+    LOG_INFO("Fullscreen enabled: {}x{}", window_.getSize().x, window_.getSize().y);
+  } else {
+    // Vuelve a la ventana: tamaño previo al salto a pantalla completa, o el de diseño
+    const sf::Vector2u size =
+        lastWindowedSize_.value_or(sf::Vector2u(gConfig.windowSize));
+    window_.create(sf::VideoMode(size), gConfig.windowTitle, sf::Style::Default);
+    LOG_INFO("Fullscreen disabled: {}x{}", size.x, size.y);
+  }
+
+  ApplyWindowSettings(); // La ventana recreada pierde icono, límite de FPS y demás ajustes
+  window_.requestFocus(); // Recrear la ventana no roba el foco: se reclama explícitamente
+
+  // Recrear la ventana no genera evento Resized: se avisa a la GUI del tamaño nuevo
+  context_.gui.ProcessEvent(sf::Event{sf::Event::Resized{window_.getSize()}});
 }

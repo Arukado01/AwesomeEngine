@@ -25,11 +25,24 @@ void GuiManager::Remove(const tgui::Widget::Ptr &widget) {
   gui_.remove(widget);
 }
 
-void GuiManager::HandleEvent(const sf::Event::Resized &resized) {
-  const sf::Vector2f defaultSize = window_.getDefaultView().getSize();
-  const sf::Vector2f scale =
-      sf::Vector2f(resized.size).componentWiseDiv(defaultSize);
-  gui_.setRelativeView({0, 0, 1 / scale.x, 1 / scale.y});
+/* La GUI comparte la geometría de la escena: dibuja y recibe el ratón dentro
+   del área de contenido, con las coordenadas de diseño (0,0,windowSize). Así
+   los widgets guardan sus proporciones sin importar el tamaño de la ventana. */
+void GuiManager::UpdateView(const sf::View &view) {
+  const sf::FloatRect viewport = view.getViewport();
+  const sf::FloatRect world(view.getCenter() - view.getSize() / 2.f,
+                            view.getSize());
+
+  if (viewport == viewport_ && world == world_) {
+    return; // Sin cambios: evita recalcular el layout cada frame
+  }
+  viewport_ = viewport;
+  world_ = world;
+
+  gui_.setRelativeViewport({viewport.position.x, viewport.position.y,
+                            viewport.size.x, viewport.size.y}); // Región del área de contenido en la ventana
+  gui_.setAbsoluteView({world.position.x, world.position.y,
+                        world.size.x, world.size.y}); // Coordenadas de diseño dentro de esa región
 }
 
 void GuiManager::HandleEvent(const sf::Event::JoystickButtonPressed &joystick) {

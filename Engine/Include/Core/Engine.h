@@ -5,6 +5,7 @@
 #include "Core/Overlay.h"
 #include "Scene/SceneFactory.h"
 #include <SFML/Graphics.hpp>
+#include <optional>
 
 class Engine {
 private:
@@ -17,6 +18,9 @@ private:
   Overlay overlay_;
   bool cursorWasVisible_;
   bool scenePaused_ = false;
+
+  bool fullscreen_ = false; // Estado actual: ventana normal o pantalla completa
+  std::optional<sf::Vector2u> lastWindowedSize_; // Tamaño de la ventana antes de ir a pantalla completa
 
 public:
   Engine();
@@ -44,4 +48,6 @@ private:
   void EventSceneMenuReturn();
   void EventOverlayPauseToggle();
   void EventOverlaySelect(OverlaySelection selection);
+  void EventFullscreenToggle();
+  void ApplyWindowSettings();
 };

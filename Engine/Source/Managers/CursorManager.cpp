@@ -6,11 +6,13 @@
 #include <algorithm>
 
 #include "Core/EngineConfig.h"
+#include "Managers/RenderManager.h"
 #include "Managers/ResourceManager.h"
 
 /* Usa el logo del motor como cursor y coloca el punto de clic en la punta de la A. */
-CursorManager::CursorManager(sf::RenderWindow &window, ResourceManager &resources)
-    : window_(window), speed_(gConfig.cursorSpeed), visible_(true) {
+CursorManager::CursorManager(sf::RenderWindow &window, ResourceManager &resources,
+                             RenderManager &renderer)
+    : window_(window), renderer_(renderer), speed_(gConfig.cursorSpeed), visible_(true) {
   if (auto *texture = resources.FetchTexture("Icon.png")) {
     const sf::Vector2f imageSize(texture->getSize());
     const float longestSide = std::max(imageSize.x, imageSize.y);
@@ -60,11 +62,11 @@ bool CursorManager::IsVisible() const { return visible_; }
 
 void CursorManager::SetPosition(sf::Vector2f position) {
   sf::Mouse::setPosition(
-      window_.mapCoordsToPixel(position, window_.getDefaultView()), window_);
+      window_.mapCoordsToPixel(position, renderer_.GetFitView(window_.getSize())), window_);
 }
 
 sf::Vector2f CursorManager::GetPosition() const {
-  return GetPosition(window_.getDefaultView());
+  return GetPosition(renderer_.GetFitView(window_.getSize()));
 }
 
 sf::Vector2f CursorManager::GetPosition(const sf::View &view) const {

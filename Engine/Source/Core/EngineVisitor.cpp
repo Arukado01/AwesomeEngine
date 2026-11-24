@@ -43,6 +43,11 @@ void EngineVisitor::operator()(const sf::Event::KeyPressed &key) {
   else if (key.scancode == sf::Keyboard::Scan::Escape) {
     engine.EventOverlayPauseToggle();
   }
+
+  else if (key.alt && (key.scancode == sf::Keyboard::Scan::Enter ||
+                       key.scancode == sf::Keyboard::Scan::NumpadEnter)) {
+    engine.EventFullscreenToggle(); // Alt + Enter: alternar pantalla completa
+  }
 }
 
 void EngineVisitor::operator()(
