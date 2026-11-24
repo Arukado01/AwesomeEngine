@@ -1,10 +1,11 @@
 #pragma once
 
 #include "Config/MenuConfig.h"
+#include "Utils/RoundedRectangleShape.h"
 
 namespace Menu {
   struct Button {
-    sf::RectangleShape shape;
+    RoundedRectangleShape shape;
     GameEntry game; // datos del juego: escena, título y controles (viene de Config.json)
     sf::Text text{GetDefaultFont()};
   };

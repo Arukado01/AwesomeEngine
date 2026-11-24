@@ -7,6 +7,7 @@ namespace Menu {
   private:
     std::vector<Button> buttons;
     Controls controls;
+    RoundedRectangleShape menuCard; // tarjeta detrás de la grilla de botones
     sf::RectangleShape menuLogo;
     sf::Text menuTitle{GetDefaultFont()};
     sf::Text menuHint{GetDefaultFont()};

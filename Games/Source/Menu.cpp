@@ -32,6 +32,18 @@ void Game::InitButtons() {
   sf::Vector2f start(spacing.x + size.x / 2.f, top + spacing.y + size.y / 2.f);
   sf::Vector2f step(spacing.x + size.x, spacing.y + size.y);
 
+  // Tarjeta detrás de la grilla, al estilo del panel de pausa: mismo fondo y
+  // borde lavanda, con un margen de CARD_PADDING alrededor de los botones.
+  const sf::Vector2f gridSize(step.x * (cols - 1) + size.x,
+                              step.y * (rows - 1) + size.y);
+  menuCard.setSize(gridSize + sf::Vector2f(CARD_PADDING * 2, CARD_PADDING * 2));
+  menuCard.setRadius(CARD_CORNER_RADIUS);
+  menuCard.setFillColor(CARD_COLOR);
+  menuCard.setOutlineColor(CARD_BORDER_COLOR);
+  menuCard.setOutlineThickness(CARD_OUTLINE_THICKNESS);
+  menuCard.setOrigin(menuCard.getGeometricCenter());
+  menuCard.setPosition(start - size / 2.f + gridSize / 2.f);
+
   buttons.reserve(count);
 
   for (int i = 0; i < count; i++) {
@@ -44,11 +56,13 @@ void Game::InitButtons() {
   }
 }
 
-/* Da a un botón su textura, color, tamaño y etiqueta centrada. */
+/* Da a un botón su estilo: azul oscuro con borde lavanda y etiqueta centrada. */
 void Game::InitButton(Button &button, sf::FloatRect bounds, const GameEntry &game) {
-  button.shape.setTexture(ctx.resources.FetchTexture(BUTTON_TEXTURE_FILENAME));
   button.shape.setFillColor(BUTTON_COLOR);
+  button.shape.setOutlineColor(BUTTON_BORDER_COLOR);
+  button.shape.setOutlineThickness(BUTTON_OUTLINE_THICKNESS);
   button.shape.setSize(bounds.size);
+  button.shape.setRadius(BUTTON_CORNER_RADIUS); // esquinas redondeadas, como el overlay
   button.shape.setOrigin(button.shape.getGeometricCenter());
   button.shape.setPosition(bounds.position);
 
@@ -182,12 +196,17 @@ void Game::UpdateButtons() {
   }
 }
 
-/* El botón bajo el cursor se ilumina. */
+/* El botón bajo el cursor se ilumina y su texto pasa a cian. */
 void Game::UpdateButton(Button &button) {
-  sf::Color color = IsButtonHovered(button) ? BUTTON_HOVERED_COLOR : BUTTON_COLOR;
+  const bool hovered = IsButtonHovered(button);
+  const sf::Color fill = hovered ? BUTTON_HOVERED_COLOR : BUTTON_COLOR;
+  const sf::Color text = hovered ? BUTTON_TEXT_HOVERED_COLOR : BUTTON_TEXT_COLOR;
 
-  if (button.shape.getFillColor() != color) {
-    button.shape.setFillColor(color);
+  if (button.shape.getFillColor() != fill) {
+    button.shape.setFillColor(fill);
+  }
+  if (button.text.getFillColor() != text) {
+    button.text.setFillColor(text);
   }
 }
 
@@ -250,6 +269,8 @@ void Game::Render() const {
 }
 
 void Game::RenderMenu() const {
+  ctx.renderer.Draw(menuCard); // la tarjeta va primero, detrás de todo
+
   if (menuLogo.getTexture()) {
     ctx.renderer.Draw(menuLogo);
   }

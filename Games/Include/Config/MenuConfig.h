@@ -8,9 +8,21 @@ namespace Menu {
 
   const int BUTTON_TEXT_SIZE = 24;
 
-  const sf::Color BUTTON_COLOR(150, 150, 225);
-  const sf::Color BUTTON_HOVERED_COLOR(sf::Color::Cyan);
-  const sf::Color BUTTON_TEXT_COLOR(sf::Color::Black);
+  // Botones al estilo del overlay de pausa: azul oscuro con borde lavanda
+  const sf::Color BUTTON_COLOR(28, 34, 66);
+  const sf::Color BUTTON_HOVERED_COLOR(40, 48, 90);
+  const sf::Color BUTTON_TEXT_COLOR(235, 240, 250);
+  const sf::Color BUTTON_TEXT_HOVERED_COLOR(sf::Color::Cyan);
+  const sf::Color BUTTON_BORDER_COLOR(150, 150, 225, 90);
+  constexpr float BUTTON_OUTLINE_THICKNESS = -1.f;
+  constexpr float BUTTON_CORNER_RADIUS = 6.f;
+
+  // Tarjeta detrás de la grilla de botones, igual que la del overlay
+  const sf::Color CARD_COLOR(18, 23, 37, 235);
+  const sf::Color CARD_BORDER_COLOR(150, 150, 225);
+  constexpr float CARD_OUTLINE_THICKNESS = -2.f;
+  constexpr float CARD_PADDING = 24.f;
+  constexpr float CARD_CORNER_RADIUS = 8.f;
 
   // Pantalla de controles: panel central con borde sobre un fondo oscurecido
   const sf::Color CONTROLS_BACKDROP_COLOR(0, 0, 0, 200);
@@ -40,6 +52,5 @@ namespace Menu {
   const float MUSIC_VOLUME = 5;
   const float MUSIC_PITCH = 1;
 
-  const std::string BUTTON_TEXTURE_FILENAME = "Button.png";
   const std::string MUSIC_FILENAME = "Music.mp3";
 } // namespace Menu
