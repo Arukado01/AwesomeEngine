@@ -21,4 +21,8 @@ namespace MemoryCard {
   };
 
   const std::string CARD_TEXTURE_FILENAME = "Card.png";
+
+  // Música de fondo compartida con los demás juegos
+  const std::string MUSIC_FILENAME = "PongMusic.wav";
+  constexpr float MUSIC_VOLUME = 30.f;
 } // namespace MemoryCard

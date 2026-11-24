@@ -35,4 +35,8 @@ namespace TicTacToe {
   const int TURN_TEXT_SIZE = 45;
   const float TURN_TEXT_BOTTOM_OFFSET = 30.f;
   const sf::Color TURN_TEXT_COLOR(225, 225, 235);
+
+  // Música de fondo compartida con los demás juegos
+  const std::string MUSIC_FILENAME = "PongMusic.wav";
+  constexpr float MUSIC_VOLUME = 30.f;
 } // namespace TicTacToe

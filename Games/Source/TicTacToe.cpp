@@ -7,11 +7,20 @@ using namespace TicTacToe;
 /* Construye el tablero, el menú de modos, y nace con los relojes ya configurados. */
 Game::Game(EngineContext &context) : Scene(context),
                                      aiCooldown(AI_TURN_COOLDOWN_DURATION),
-                                     restartCooldown(RESTART_COOLDOWN_DURATION) {
+                                     restartCooldown(RESTART_COOLDOWN_DURATION),
+                                     audioGroup(context.audio.CreateGroup()) {
   aiCooldown.Bind(ctx.time);
   restartCooldown.Bind(ctx.time);
   InitGrid();
   InitMenu();
+  InitMusic();
+}
+
+/* Música de fondo en bucle, compartida con los demás juegos. */
+void Game::InitMusic() {
+  if (auto track = ctx.resources.FetchMusic(MUSIC_FILENAME)) {
+    music = audioGroup.AddMusic(std::move(*track), MUSIC_VOLUME, true);
+  }
 }
 
 /* Reparte el tamaño de la ventana entre las celdas y crea las 9 con su posición en grilla. */
@@ -107,6 +116,10 @@ void Game::FitText(sf::Text &text, float maxWidth, float size) {
 /* Entrada a la escena (también reutilizada por el reinicio): el menú manda, el modo se elige de nuevo cada partida. */
 void Game::Start() {
   StartMenu();
+
+  if (music) {
+    audioGroup.Play(*music);
+  }
 }
 
 /* Menú visible de nacimiento: sin modo, sin rastro de la ronda anterior y el reloj de reinicio detenido. */
@@ -459,4 +472,14 @@ void Game::Render() const {
   ctx.renderer.Draw(turnText); // el aviso de turno, bajo el borde inferior del tablero
 
   ctx.renderer.Draw(resultText); // el anuncio, la capa más alta de todas
+}
+
+/* La música sigue el estado de pausa de la ventana. */
+void Game::OnPause(bool paused) {
+  audioGroup.SetPaused(paused);
+}
+
+/* Detiene la música al cambiar o reiniciar la escena. */
+void Game::OnCleanup() {
+  audioGroup.StopAll();
 }

@@ -27,4 +27,8 @@ namespace MineSweeper {
   const sf::Color RESULT_WIN_COLOR(sf::Color::Green);
   const sf::Color RESULT_LOSE_COLOR(200, 50, 50);
   const sf::Color RESULT_OUTLINE_COLOR(25, 25, 25);
+
+  // Música de fondo compartida con los demás juegos
+  const std::string MUSIC_FILENAME = "PongMusic.wav";
+  constexpr float MUSIC_VOLUME = 30.f;
 } // namespace MineSweeper

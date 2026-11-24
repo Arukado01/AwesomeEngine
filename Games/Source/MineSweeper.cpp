@@ -4,10 +4,19 @@ using namespace MineSweeper;
 
 /* Constructor: prepara la grilla y las estadísticas una vez, al crear la escena. */
 Game::Game(EngineContext &context) : Scene(context),
-                                     restartCooldown(RESTART_COOLDOWN_DURATION) {
+                                     restartCooldown(RESTART_COOLDOWN_DURATION),
+                                     audioGroup(context.audio.CreateGroup()) {
   restartCooldown.Bind(ctx.time);
   InitGrid();
   InitStats();
+  InitMusic();
+}
+
+/* Música de fondo en bucle, compartida con los demás juegos. */
+void Game::InitMusic() {
+  if (auto track = ctx.resources.FetchMusic(MUSIC_FILENAME)) {
+    music = audioGroup.AddMusic(std::move(*track), MUSIC_VOLUME, true);
+  }
 }
 
 /* Calcula dónde nace el tablero y crea las 8×8 casillas en su posición. */
@@ -68,6 +77,10 @@ void Game::Start() {
   StartStats();
 
   restartCooldown.Reset(); // el temporizador de reinicio arranca a cero y detenido
+
+  if (music) {
+    audioGroup.Play(*music);
+  }
 }
 
 /* Resetea todas las casillas del tablero al estado inicial. */
@@ -380,4 +393,14 @@ void Game::RenderCell(const Cell &cell) const {
     ctx.renderer.Draw(cell.visual.adjacentCountText); // número de minas vecinas; las casillas abiertas con 0 quedan limpias
   }
   // sin nada extra: una tapada solo muestra el fondo y una abierta sin minas alrededor tampoco agrega dibujo
+}
+
+/* La música sigue el estado de pausa de la ventana. */
+void Game::OnPause(bool paused) {
+  audioGroup.SetPaused(paused);
+}
+
+/* Detiene la música al cambiar o reiniciar la escena. */
+void Game::OnCleanup() {
+  audioGroup.StopAll();
 }

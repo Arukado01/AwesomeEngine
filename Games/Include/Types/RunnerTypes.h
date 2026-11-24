@@ -75,7 +75,9 @@ namespace Runner {
     float speed = 0;
     float obstacleNextX = 0;
     float distance = 0;
+    int highDistance = 0;
     sf::Text distanceText{GetDefaultFont()};
+    sf::Text highDistanceText{GetDefaultFont()};
   };
 
   struct GameOverState {

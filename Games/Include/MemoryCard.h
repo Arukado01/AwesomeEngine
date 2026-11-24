@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types/MemoryCardTypes.h"
+#include <memory>
 
 namespace MemoryCard {
   class Game : public Scene {
@@ -9,6 +10,9 @@ namespace MemoryCard {
     CardPair cardPair;
     Stats stats;
 
+    AudioGroup audioGroup;
+    std::shared_ptr<sf::Music> music;
+
   public:
     Game(EngineContext &);
 
@@ -16,9 +20,12 @@ namespace MemoryCard {
     void OnEvent(const sf::Event &);
     void Update();
     void Render() const;
+    void OnPause(bool paused);
+    void OnCleanup();
 
   private:
     void InitCardPair();
+    void InitMusic();
 
     void StartStats();
     void StartCards();

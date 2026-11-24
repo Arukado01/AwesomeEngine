@@ -164,11 +164,17 @@ void Game::StartPlayer() {
 void Game::StartStats() {
   stats.distanceText.setFillColor(STATS_DISTANCE_TEXT_COLOR);
   stats.distanceText.setPosition({10, 10});
+  stats.highDistanceText.setFillColor(STATS_DISTANCE_TEXT_COLOR);
+  stats.highDistanceText.setPosition({10, 40});
   stats.speed = STATS_SPEED_START;
   stats.obstacleNextX = ctx.random.Float(OBSTACLE_MIN_DISTANCE, OBSTACLE_MAX_DISTANCE);
 
   stats.distance = 0;
   stats.distanceText.setString("Distance: 0");
+
+  // El récord de distancia sobrevive a las partidas: se recupera del guardado.
+  stats.highDistance = ctx.save.Get<int>(STATS_HIGH_SCORE_KEY, 0);
+  stats.highDistanceText.setString(std::format("High: {}", stats.highDistance));
 }
 
 /* Actualiza la simulación o mantiene el resultado visible mientras se espera el reinicio. */
@@ -472,6 +478,13 @@ void Game::UpdateStats() {
   // Actualiza el texto solo cuando cambia la distancia entera que ve el jugador.
   if (GetDistance() != previousDistance) {
     stats.distanceText.setString(std::format("Distance: {}", GetDistance()));
+
+    // El récord se actualiza y se guarda en cuanto la distancia lo supera.
+    if (GetDistance() > stats.highDistance) {
+      stats.highDistance = GetDistance();
+      stats.highDistanceText.setString(std::format("High: {}", stats.highDistance));
+      ctx.save.Set(STATS_HIGH_SCORE_KEY, stats.highDistance);
+    }
   }
 }
 
@@ -643,6 +656,7 @@ void Game::Render() const {
   ctx.renderer.Draw(player.sprite);
 
   ctx.renderer.Draw(stats.distanceText);
+  ctx.renderer.Draw(stats.highDistanceText);
   if (gameOver.active) {
     RenderGameOver();
   }

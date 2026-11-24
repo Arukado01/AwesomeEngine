@@ -4,6 +4,7 @@
 
 #include <array>
 #include <string>
+#include <string_view>
 
 namespace Runner {
   const sf::Vector2f PLAYER_SIZE(28, 48);
@@ -97,6 +98,9 @@ namespace Runner {
   const std::string MUSIC_FILENAME = "RunnerCyberpunk.ogg";
   const float MUSIC_VOLUME = 32;
   const float MUSIC_GAME_OVER_VOLUME = 18;
+
+  // Clave del récord de distancia persistido en Content/Save.json
+  const std::string_view STATS_HIGH_SCORE_KEY = "Runner:High Distance";
 
   const std::array<SoundEffectConfig, static_cast<std::size_t>(PlayerSound::Count)> PLAYER_SOUNDS{{
       {"RunnerFootstepLeft.wav", 9, false},

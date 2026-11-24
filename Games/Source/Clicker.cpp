@@ -2,11 +2,13 @@
 
 using namespace Clicker;
 
-Game::Game(EngineContext &context) : Scene(context) {
+Game::Game(EngineContext &context) : Scene(context),
+                                     audioGroup(context.audio.CreateGroup()) {
   target.teleportCooldown.Bind(ctx.time);
   stats.finalCooldown.Bind(ctx.time);
   InitTarget();
   InitStats();
+  InitMusic();
 }
 
 void Game::InitTarget() {
@@ -34,12 +36,17 @@ void Game::InitStats() {
 }
 
 void Game::Start() {
+  audioGroup.StopAll();
   ctx.cursor.SetSpeed(CURSOR_SPEED);
 
   StartInputs();
 
   StartTarget();
   StartStats();
+
+  if (music) {
+    audioGroup.Play(*music);
+  }
 }
 
 void Game::StartInputs() {
@@ -135,6 +142,23 @@ void Game::EventStatsScoreIncrease() {
 
 bool Game::IsTargetHovered() const {
   return Contains(target.shape, ctx.cursor.GetPosition());
+}
+
+/* Música de fondo en bucle, compartida con los demás juegos. */
+void Game::InitMusic() {
+  if (auto track = ctx.resources.FetchMusic(MUSIC_FILENAME)) {
+    music = audioGroup.AddMusic(std::move(*track), MUSIC_VOLUME, true);
+  }
+}
+
+/* La música sigue el estado de pausa de la ventana. */
+void Game::OnPause(bool paused) {
+  audioGroup.SetPaused(paused);
+}
+
+/* Detiene la música al cambiar o reiniciar la escena. */
+void Game::OnCleanup() {
+  audioGroup.StopAll();
 }
 
 void Game::Render() const {

@@ -2,6 +2,7 @@
 
 #include "Types/TicTacToeTypes.h"
 
+#include <memory>
 #include <optional>
 #include <span>
 
@@ -21,6 +22,9 @@ namespace TicTacToe {
     sf::RectangleShape winningLine;
     sf::Text resultText{GetDefaultFont()};
 
+    AudioGroup audioGroup;
+    std::shared_ptr<sf::Music> music;
+
   public:
     Game(EngineContext &);
 
@@ -28,12 +32,15 @@ namespace TicTacToe {
     void OnEvent(const sf::Event &);
     void Update();
     void Render() const;
+    void OnPause(bool paused);
+    void OnCleanup();
 
   private:
     void InitGrid();
     void InitGridCell(Cell &cell, sf::Vector2f position);
     void InitMenu();
     void InitMenuButton(ModeButton &button, sf::Vector2f position, sf::Vector2f size);
+    void InitMusic();
     void FitText(sf::Text &text, float maxWidth, float size);
 
     void StartMenu();

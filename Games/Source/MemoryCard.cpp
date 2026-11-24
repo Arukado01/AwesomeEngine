@@ -3,9 +3,11 @@
 using namespace MemoryCard;
 
 /* Constructor: inicializa la escena y prepara el temporizador del par visible. */
-Game::Game(EngineContext &context) : Scene(context) {
+Game::Game(EngineContext &context) : Scene(context),
+                                     audioGroup(context.audio.CreateGroup()) {
   cardPair.visibleCooldown.Bind(ctx.time);
   InitCardPair();
+  InitMusic();
 }
 
 /* Configura la duración que permanecen visibles las cartas volteadas. */
@@ -13,10 +15,21 @@ void Game::InitCardPair() {
   cardPair.visibleCooldown.SetDuration(CARD_PAIR_VISIBLE_COOLDOWN_DURATION);
 }
 
-/* Arranque de la escena: reinicia estadísticas y genera las cartas. */
+/* Música de fondo en bucle, compartida con los demás juegos. */
+void Game::InitMusic() {
+  if (auto track = ctx.resources.FetchMusic(MUSIC_FILENAME)) {
+    music = audioGroup.AddMusic(std::move(*track), MUSIC_VOLUME, true);
+  }
+}
+
+/* Arranque de la escena: reinicia estadísticas, genera las cartas y arranca la música. */
 void Game::Start() {
   StartStats();
   StartCards();
+
+  if (music) {
+    audioGroup.Play(*music);
+  }
 }
 
 /* Reinicia el nivel a 0 en cada nueva partida. */
@@ -171,4 +184,14 @@ void Game::Render() const {
   for (const auto &card : cards) {
     ctx.renderer.Draw(card.shape);
   }
+}
+
+/* La música sigue el estado de pausa de la ventana. */
+void Game::OnPause(bool paused) {
+  audioGroup.SetPaused(paused);
+}
+
+/* Detiene la música al cambiar o reiniciar la escena. */
+void Game::OnCleanup() {
+  audioGroup.StopAll();
 }

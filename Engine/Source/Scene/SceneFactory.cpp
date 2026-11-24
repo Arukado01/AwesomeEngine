@@ -10,6 +10,8 @@
 #include "Pong.h"
 #include "Breakout.h"
 
+#include "Menu.h"
+
 namespace SceneFactory {
   Scenes CreateScenes(EngineContext &context) {
     Scenes scenes;
@@ -23,6 +25,8 @@ namespace SceneFactory {
     scenes.emplace("Tetris", std::make_unique<Tetris::Game>(context));
     scenes.emplace("Pong", std::make_unique<Pong::Game>(context));
     scenes.emplace("Breakout", std::make_unique<Breakout::Game>(context));
+
+    scenes.emplace("Menu", std::make_unique<Menu::Game>(context));
 
     return scenes;
   }

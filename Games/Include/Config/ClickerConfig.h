@@ -20,4 +20,8 @@ namespace Clicker {
   const std::string TARGET_TEXTURE_FILENAME = "Target.png";
 
   const std::string_view STATS_BEST_TIME_KEY = "Clicker:Best Time";
+
+  // Música de fondo compartida con los demás juegos
+  const std::string MUSIC_FILENAME = "PongMusic.wav";
+  constexpr float MUSIC_VOLUME = 30.f;
 } // namespace Clicker

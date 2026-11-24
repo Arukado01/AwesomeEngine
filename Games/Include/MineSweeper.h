@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types/MineSweeperTypes.h"
+#include <memory>
 
 namespace MineSweeper {
   class Game : public Scene {
@@ -10,6 +11,9 @@ namespace MineSweeper {
     Cooldown restartCooldown;
     sf::Text resultText{GetDefaultFont()};
 
+    AudioGroup audioGroup;
+    std::shared_ptr<sf::Music> music;
+
   public:
     Game(EngineContext &);
 
@@ -17,11 +21,14 @@ namespace MineSweeper {
     void OnEvent(const sf::Event &);
     void Update();
     void Render() const;
+    void OnPause(bool paused);
+    void OnCleanup();
 
   private:
     void InitGrid();
     void InitGridCell(Cell &cell, sf::FloatRect bounds);
     void InitStats();
+    void InitMusic();
 
     void StartGrid();
     void StartGridCell(Cell &cell);
