@@ -181,6 +181,11 @@ void Engine::EventSceneMenuReturn() {
 /** Evento: alterna el estado de pausa (muestra/oculta el overlay de pausa) y pausa/reanuda la escena en consecuencia */
 void Engine::EventOverlayPauseToggle() {
 
+  // Desde el menú principal no se abre ningún menú de pausa: no hay nada que pausar.
+  if (context_.scenes.CurrentScene() == "Menu") {
+    return;
+  }
+
   const bool overlayVisible = !overlay_.IsVisible(); // Calcula el nuevo estado: si estaba oculto, ahora se muestra (y viceversa)
   overlay_.SetVisible(overlayVisible);
 

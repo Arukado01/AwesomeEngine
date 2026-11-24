@@ -13,6 +13,9 @@ public:
   void ChangeScene(std::string_view name);
   void RestartCurrentScene();
 
+  /* Nombre de la escena activa actual. */
+  const std::string &CurrentScene() const { return currentScene_; }
+
 private:
   friend class Engine;
 
