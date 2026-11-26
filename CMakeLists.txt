@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.28)
 project(AwesomeEngine CXX)
 
+include(CTest)
+
 set(SFML_BUILD_NETWORK OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SPDLOG_USE_STD_FORMAT ON)
@@ -26,4 +28,8 @@ target_link_libraries(AwesomeEngine PRIVATE SFML::Graphics SFML::Audio nlohmann_
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND WIN32)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--start-group")
   set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES} -Wl,--end-group")
+endif()
+
+if(BUILD_TESTING)
+  add_subdirectory(Tests)
 endif()
