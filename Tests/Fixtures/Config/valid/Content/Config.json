@@ -1,0 +1,16 @@
+{
+  "windowTitle": "Fixture",
+  "windowSize": [800, 600],
+  "frameRateLimit": 60,
+  "disableSfmlLogs": true,
+  "maximumDeltaTime": 0.25,
+  "globalVolume": 0.5,
+  "backgroundColor": [10, 20, 30],
+  "cursorSize": 32,
+  "cursorSpeed": 500,
+  "joystickDeadzone": 0.2,
+  "games": [
+    {"name": "A", "title": "Game A", "controls": "A controls"},
+    {"name": "B", "title": "Game B", "controls": "B controls"}
+  ]
+}

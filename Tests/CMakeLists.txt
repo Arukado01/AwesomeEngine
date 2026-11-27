@@ -81,3 +81,41 @@ add_test(NAME core.save_manager COMMAND ae_save_manager_tests)
 set_tests_properties(core.save_manager PROPERTIES
     LABELS "core;headless;persistence"
 )
+
+##################################################################################################
+
+add_executable(ae_engine_config_tests
+    Core/EngineConfigTests.cpp
+    ${PROJECT_SOURCE_DIR}/Engine/Source/Core/EngineConfig.cpp
+)
+
+target_include_directories(ae_engine_config_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/Engine/Include
+)
+
+target_compile_features(ae_engine_config_tests PRIVATE cxx_std_20)
+target_link_libraries(ae_engine_config_tests PRIVATE
+    SFML::Graphics
+    nlohmann_json::nlohmann_json
+)
+
+if(MSVC)
+    target_compile_options(ae_engine_config_tests PRIVATE /W4)
+else()
+    target_compile_options(ae_engine_config_tests PRIVATE -Wall -Wextra)
+endif()
+
+add_test(NAME core.engine_config.valid COMMAND ae_engine_config_tests)
+set_tests_properties(core.engine_config.valid PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Fixtures/Config/valid"
+    ENVIRONMENT "AE_CONFIG_CASE=valid"
+    LABELS "core;headless;config"
+)
+
+add_test(NAME core.engine_config.minimal COMMAND ae_engine_config_tests)
+set_tests_properties(core.engine_config.minimal PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Fixtures/Config/minimal"
+    ENVIRONMENT "AE_CONFIG_CASE=minimal"
+    LABELS "core;headless;config"
+)

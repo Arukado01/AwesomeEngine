@@ -1,0 +1,10 @@
+{
+  "windowTitle": "Fixture",
+  "windowSize": [800, 600],
+  "disableSfmlLogs": true,
+  "maximumDeltaTime": 0.25,
+  "globalVolume": 0.5,
+  "backgroundColor": [10, 20, 30],
+  "cursorSpeed": 500,
+  "joystickDeadzone": 0.2
+}
