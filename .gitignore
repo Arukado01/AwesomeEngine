@@ -59,6 +59,9 @@ Thumbs.db
 *.log
 *.tmp
 
+/Docs/
+/.opencode/
+
 HighScores.txt
 
 Content/Screenshots

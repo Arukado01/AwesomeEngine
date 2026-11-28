@@ -2,12 +2,14 @@
 #include <SFML/System/Sleep.hpp>
 
 #include "Core/Engine.h"
+#include "Utils/FrameProfiler.h"
 #include "SFML/System/Time.hpp"
 
 SFML_DEFINE_DISCRETE_GPU_PREFERENCE
 
 int main() {
   Engine engine;
+  FrameProfiler profiler;
 
   while (engine.IsRunning()) {
     engine.ProcessEvent();
@@ -19,5 +21,6 @@ int main() {
     }
 
     engine.Render();
+    profiler.Frame();
   }
 }
